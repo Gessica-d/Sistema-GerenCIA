@@ -1,0 +1,23 @@
+# Eclipse
+.metadata/
+bin/
+tmp/
+*.tmp
+*.bak
+*.swp
+.settings/
+.classpath
+.project
+
+# Java
+*.class
+
+# Servidores
+servers/
+
+# Logs
+*.log
+
+# Sistema operacional
+.DS_Store
+Thumbs.db

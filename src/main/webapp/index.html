@@ -1,0 +1,1074 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>GerenCIA</title>
+
+    <style>
+
+        /* =========================
+           RESET
+        ========================= */
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+
+        /* =========================
+           BASE
+        ========================= */
+
+        body {
+            min-height: 100vh;
+
+            font-family:
+                Arial,
+                Helvetica,
+                sans-serif;
+
+            background: #F8FAFC;
+
+            color: #0F172A;
+        }
+
+
+        /* =========================
+           BARRA SUPERIOR
+        ========================= */
+
+        .topbar {
+
+            height: 36px;
+
+            background: #0F172A;
+
+            display: flex;
+
+            align-items: center;
+            justify-content: center;
+
+            color: #CBD5E1;
+
+            font-size: 12px;
+
+        }
+
+
+        /* =========================
+           NAVBAR
+        ========================= */
+
+        .navbar {
+
+            height: 64px;
+
+            background: #FFFFFF;
+
+            border-bottom: 1px solid #E2E8F0;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: space-between;
+
+            padding: 0 32px;
+
+        }
+
+
+        /* =========================
+           LOGO
+        ========================= */
+
+        .logo {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 10px;
+
+            text-decoration: none;
+
+            color: #0F172A;
+
+        }
+
+
+        .logo-icon {
+
+            width: 38px;
+            height: 38px;
+
+            border-radius: 10px;
+
+            background: #2563EB;
+
+            display: flex;
+
+            align-items: center;
+            justify-content: center;
+
+            color: #FFFFFF;
+
+            font-size: 18px;
+
+        }
+
+
+        .logo-name {
+
+            font-size: 18px;
+
+            font-weight: 700;
+
+        }
+
+
+        /* =========================
+           LINKS
+        ========================= */
+
+        .navbar-links {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 28px;
+
+        }
+
+
+        .navbar-links a {
+
+            text-decoration: none;
+
+            color: #64748B;
+
+            font-size: 14px;
+
+            font-weight: 500;
+
+            transition: 0.2s;
+
+        }
+
+
+        .navbar-links a:hover {
+
+            color: #2563EB;
+
+        }
+
+
+        /* =========================
+           AÇÕES
+        ========================= */
+
+        .navbar-actions {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 10px;
+
+        }
+
+
+        .btn-login {
+
+            height: 38px;
+
+            padding: 0 18px;
+
+            border: 1px solid #E2E8F0;
+
+            border-radius: 8px;
+
+            background: #FFFFFF;
+
+            color: #334155;
+
+            text-decoration: none;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            font-size: 13px;
+
+            font-weight: 600;
+
+            transition: 0.2s;
+
+        }
+
+
+        .btn-login:hover {
+
+            border-color: #CBD5E1;
+
+            background: #F8FAFC;
+
+        }
+
+
+        .btn-register {
+
+            height: 38px;
+
+            padding: 0 18px;
+
+            border-radius: 8px;
+
+            background: #2563EB;
+
+            color: #FFFFFF;
+
+            text-decoration: none;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            font-size: 13px;
+
+            font-weight: 600;
+
+            transition: 0.2s;
+
+        }
+
+
+        .btn-register:hover {
+
+            background: #1D4ED8;
+
+        }
+
+
+        /* =========================
+           CONTEÚDO
+        ========================= */
+
+        .main {
+
+            min-height:
+                calc(100vh - 100px);
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            padding: 60px 30px;
+
+        }
+
+
+        .content {
+
+            width: 100%;
+
+            max-width: 1150px;
+
+            display: grid;
+
+            grid-template-columns:
+                1fr 1fr;
+
+            gap: 70px;
+
+            align-items: center;
+
+        }
+
+
+        /* =========================
+           TEXTO PRINCIPAL
+        ========================= */
+
+        .welcome {
+
+            max-width: 570px;
+
+        }
+
+
+        .badge {
+
+            display: inline-flex;
+
+            align-items: center;
+
+            gap: 8px;
+
+            padding: 7px 12px;
+
+            border-radius: 20px;
+
+            background: #EFF6FF;
+
+            color: #2563EB;
+
+            font-size: 12px;
+
+            font-weight: 600;
+
+            margin-bottom: 18px;
+
+        }
+
+
+        .badge-dot {
+
+            width: 7px;
+
+            height: 7px;
+
+            border-radius: 50%;
+
+            background: #2563EB;
+
+        }
+
+
+        .welcome h1 {
+
+            font-size: 44px;
+
+            line-height: 1.12;
+
+            letter-spacing: -1px;
+
+            margin-bottom: 18px;
+
+        }
+
+
+        .welcome h1 span {
+
+            color: #2563EB;
+
+        }
+
+
+        .welcome p {
+
+            max-width: 520px;
+
+            color: #64748B;
+
+            font-size: 16px;
+
+            line-height: 1.7;
+
+            margin-bottom: 28px;
+
+        }
+
+
+        /* =========================
+           BOTÃO PRINCIPAL
+        ========================= */
+
+        .btn-primary {
+
+            display: inline-flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            gap: 8px;
+
+            height: 44px;
+
+            padding: 0 22px;
+
+            border-radius: 9px;
+
+            background: #2563EB;
+
+            color: #FFFFFF;
+
+            text-decoration: none;
+
+            font-size: 14px;
+
+            font-weight: 600;
+
+            transition: 0.2s;
+
+        }
+
+
+        .btn-primary:hover {
+
+            background: #1D4ED8;
+
+            transform: translateY(-1px);
+
+        }
+
+
+        /* =========================
+           PAINEL VISUAL
+        ========================= */
+
+        .dashboard-preview {
+
+            background: #FFFFFF;
+
+            border: 1px solid #E2E8F0;
+
+            border-radius: 14px;
+
+            padding: 18px;
+
+            box-shadow:
+                0 10px 30px
+                rgba(15, 23, 42, 0.06);
+
+        }
+
+
+        /* =========================
+           PREVIEW HEADER
+        ========================= */
+
+        .preview-header {
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: space-between;
+
+            padding-bottom: 16px;
+
+            border-bottom:
+                1px solid #E2E8F0;
+
+            margin-bottom: 18px;
+
+        }
+
+
+        .preview-title {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 10px;
+
+        }
+
+
+        .preview-title-icon {
+
+            width: 34px;
+
+            height: 34px;
+
+            border-radius: 9px;
+
+            background: #2563EB;
+
+            color: #FFFFFF;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+        }
+
+
+        .preview-title strong {
+
+            font-size: 14px;
+
+        }
+
+
+        .preview-title small {
+
+            display: block;
+
+            margin-top: 3px;
+
+            color: #94A3B8;
+
+            font-size: 11px;
+
+        }
+
+
+        .notification {
+
+            width: 30px;
+
+            height: 30px;
+
+            border-radius: 8px;
+
+            background: #F8FAFC;
+
+            border: 1px solid #E2E8F0;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            font-size: 13px;
+
+        }
+
+
+        /* =========================
+           CARDS
+        ========================= */
+
+        .preview-cards {
+
+            display: grid;
+
+            grid-template-columns:
+                repeat(2, 1fr);
+
+            gap: 12px;
+
+        }
+
+
+        .preview-card {
+
+            padding: 16px;
+
+            background: #F8FAFC;
+
+            border: 1px solid #E2E8F0;
+
+            border-radius: 10px;
+
+        }
+
+
+        .preview-card-icon {
+
+            width: 30px;
+
+            height: 30px;
+
+            border-radius: 8px;
+
+            background: #EFF6FF;
+
+            color: #2563EB;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            margin-bottom: 12px;
+
+        }
+
+
+        .preview-card strong {
+
+            display: block;
+
+            font-size: 18px;
+
+            margin-bottom: 3px;
+
+        }
+
+
+        .preview-card span {
+
+            color: #94A3B8;
+
+            font-size: 11px;
+
+        }
+
+
+        /* =========================
+           EVENTO
+        ========================= */
+
+        .event-preview {
+
+            margin-top: 12px;
+
+            padding: 14px;
+
+            border: 1px solid #E2E8F0;
+
+            border-radius: 10px;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: space-between;
+
+        }
+
+
+        .event-info strong {
+
+            display: block;
+
+            font-size: 13px;
+
+            margin-bottom: 5px;
+
+        }
+
+
+        .event-info span {
+
+            font-size: 11px;
+
+            color: #94A3B8;
+
+        }
+
+
+        .event-status {
+
+            padding: 5px 9px;
+
+            border-radius: 6px;
+
+            background: #DCFCE7;
+
+            color: #166534;
+
+            font-size: 10px;
+
+            font-weight: 600;
+
+        }
+
+
+        /* =========================
+           RODAPÉ
+        ========================= */
+
+        .footer {
+
+            text-align: center;
+
+            padding: 20px;
+
+            color: #94A3B8;
+
+            font-size: 11px;
+
+        }
+
+
+        /* =========================
+           RESPONSIVIDADE
+        ========================= */
+
+        @media (max-width: 850px) {
+
+            .navbar-links {
+
+                display: none;
+
+            }
+
+
+            .content {
+
+                grid-template-columns: 1fr;
+
+                text-align: center;
+
+            }
+
+
+            .welcome {
+
+                max-width: 650px;
+
+                margin: 0 auto;
+
+            }
+
+
+            .welcome p {
+
+                margin-left: auto;
+
+                margin-right: auto;
+
+            }
+
+
+            .dashboard-preview {
+
+                max-width: 550px;
+
+                width: 100%;
+
+                margin: auto;
+
+            }
+
+        }
+
+
+        @media (max-width: 550px) {
+
+            .navbar {
+
+                padding: 0 16px;
+
+            }
+
+
+            .btn-login {
+
+                display: none;
+
+            }
+
+
+            .main {
+
+                padding: 40px 20px;
+
+            }
+
+
+            .welcome h1 {
+
+                font-size: 34px;
+
+            }
+
+
+            .welcome p {
+
+                font-size: 14px;
+
+            }
+
+
+            .preview-cards {
+
+                grid-template-columns: 1fr;
+
+            }
+
+        }
+
+    </style>
+
+</head>
+
+
+<body>
+
+
+    <!-- =========================
+         BARRA SUPERIOR
+    ========================= -->
+
+    <div class="topbar">
+
+        Plataforma de gestão de eventos
+
+    </div>
+
+
+    <!-- =========================
+         NAVBAR
+    ========================= -->
+
+    <header class="navbar">
+
+
+        <a href="index.html" class="logo">
+
+            <div class="logo-icon">
+                📅
+            </div>
+
+            <span class="logo-name">
+                GerenCIA
+            </span>
+
+        </a>
+
+
+        <nav class="navbar-links">
+
+            <a href="#">
+                Início
+            </a>
+
+            <a href="#">
+                Eventos
+            </a>
+
+            <a href="#">
+                Sobre
+            </a>
+
+        </nav>
+
+
+        <div class="navbar-actions">
+
+            <a
+                href="pages/login.jsp"
+                class="btn-login">
+
+                Entrar
+
+            </a>
+
+
+            <a
+                href="pages/cadastro.jsp"
+                class="btn-register">
+
+                Criar conta
+
+            </a>
+
+        </div>
+
+
+    </header>
+
+
+    <!-- =========================
+         CONTEÚDO PRINCIPAL
+    ========================= -->
+
+    <main class="main">
+
+        <div class="content">
+
+
+            <!-- TEXTO -->
+
+            <section class="welcome">
+
+                <div class="badge">
+
+                    <span class="badge-dot"></span>
+
+                    Gestão inteligente de eventos
+
+                </div>
+
+
+                <h1>
+
+                    Organize seus eventos
+                    <br>
+
+                    <span>de forma simples.</span>
+
+                </h1>
+
+
+                <p>
+
+                    O GerenCIA reúne eventos, inscrições,
+                    participantes e fornecedores em um
+                    único sistema, facilitando toda a
+                    organização.
+
+                </p>
+
+
+                <a
+                    href="pages/login.jsp"
+                    class="btn-primary">
+
+                    Acessar o sistema
+
+                    <span>→</span>
+
+                </a>
+
+            </section>
+
+
+            <!-- =========================
+                 PREVIEW DO SISTEMA
+            ========================= -->
+
+            <section class="dashboard-preview">
+
+
+                <div class="preview-header">
+
+                    <div class="preview-title">
+
+                        <div class="preview-title-icon">
+                            📅
+                        </div>
+
+                        <div>
+
+                            <strong>
+                                GerenCIA
+                            </strong>
+
+                            <small>
+                                Gestão de eventos
+                            </small>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="notification">
+                        🔔
+                    </div>
+
+                </div>
+
+
+                <div class="preview-cards">
+
+
+                    <div class="preview-card">
+
+                        <div class="preview-card-icon">
+                            📅
+                        </div>
+
+                        <strong>
+                            24
+                        </strong>
+
+                        <span>
+                            Eventos
+                        </span>
+
+                    </div>
+
+
+                    <div class="preview-card">
+
+                        <div class="preview-card-icon">
+                            👥
+                        </div>
+
+                        <strong>
+                            1.248
+                        </strong>
+
+                        <span>
+                            Participantes
+                        </span>
+
+                    </div>
+
+
+                </div>
+
+
+                <div class="event-preview">
+
+                    <div class="event-info">
+
+                        <strong>
+                            Próximo evento
+                        </strong>
+
+                        <span>
+                            Evento em destaque
+                        </span>
+
+                    </div>
+
+
+                    <span class="event-status">
+                        Ativo
+                    </span>
+
+                </div>
+
+
+                <div class="event-preview">
+
+                    <div class="event-info">
+
+                        <strong>
+                            Inscrições
+                        </strong>
+
+                        <span>
+                            Acompanhamento de participantes
+                        </span>
+
+                    </div>
+
+
+                    <span class="event-status">
+                        Online
+                    </span>
+
+                </div>
+
+
+            </section>
+
+        </div>
+
+    </main>
+
+
+    <!-- =========================
+         RODAPÉ
+    ========================= -->
+
+    <footer class="footer">
+
+        GerenCIA — Sistema de Gestão de Eventos
+
+    </footer>
+
+
+</body>
+
+</html>
