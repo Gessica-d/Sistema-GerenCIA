@@ -176,7 +176,7 @@ public class fornecedorController extends HttpServlet {
 
         response.sendRedirect(
             request.getContextPath()
-            + "/fornecedorController?action=listar"
+            + "/pages/homeOrganizador.jsp"
         );
     }
 
@@ -258,7 +258,7 @@ public class fornecedorController extends HttpServlet {
 
         response.sendRedirect(
             request.getContextPath()
-            + "/fornecedorController?action=listar"
+            + "/pages/homeOrganizador.jsp"
         );
     }
 
@@ -316,7 +316,7 @@ public class fornecedorController extends HttpServlet {
 
         response.sendRedirect(
             request.getContextPath()
-            + "/fornecedorController?action=listar"
+            + "/pages/homeOrganizador.jsp"
         );
     }
 

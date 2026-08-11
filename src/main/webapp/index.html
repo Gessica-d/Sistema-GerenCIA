@@ -47,18 +47,36 @@
 
         .topbar {
 
-            height: 36px;
+            height: 38px;
 
-            background: #0F172A;
+            background: linear-gradient(90deg, #1E1B4B, #1E3A8A 45%, #7C3AED);
 
             display: flex;
 
             align-items: center;
             justify-content: center;
 
-            color: #CBD5E1;
+            gap: 8px;
+
+            color: #E0E7FF;
 
             font-size: 12px;
+            font-weight: 500;
+
+            letter-spacing: 0.2px;
+
+        }
+
+        .topbar span.dot {
+
+            width: 6px;
+            height: 6px;
+
+            border-radius: 50%;
+
+            background: #4ADE80;
+
+            box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.25);
 
         }
 
@@ -112,7 +130,7 @@
 
             border-radius: 10px;
 
-            background: #2563EB;
+            background: linear-gradient(135deg, #2563EB, #7C3AED);
 
             display: flex;
 
@@ -123,6 +141,8 @@
 
             font-size: 18px;
 
+            box-shadow: 0 4px 12px rgba(124, 58, 237, 0.25);
+
         }
 
 
@@ -131,43 +151,6 @@
             font-size: 18px;
 
             font-weight: 700;
-
-        }
-
-
-        /* =========================
-           LINKS
-        ========================= */
-
-        .navbar-links {
-
-            display: flex;
-
-            align-items: center;
-
-            gap: 28px;
-
-        }
-
-
-        .navbar-links a {
-
-            text-decoration: none;
-
-            color: #64748B;
-
-            font-size: 14px;
-
-            font-weight: 500;
-
-            transition: 0.2s;
-
-        }
-
-
-        .navbar-links a:hover {
-
-            color: #2563EB;
 
         }
 
@@ -269,6 +252,8 @@
 
         .main {
 
+            position: relative;
+
             min-height:
                 calc(100vh - 100px);
 
@@ -279,6 +264,13 @@
             justify-content: center;
 
             padding: 60px 30px;
+
+            overflow: hidden;
+
+            background:
+                radial-gradient(circle at 8% 20%, rgba(124, 58, 237, 0.10), transparent 40%),
+                radial-gradient(circle at 92% 75%, rgba(37, 99, 235, 0.10), transparent 45%),
+                radial-gradient(circle at 60% 100%, rgba(16, 185, 129, 0.08), transparent 40%);
 
         }
 
@@ -324,9 +316,11 @@
 
             border-radius: 20px;
 
-            background: #EFF6FF;
+            background: linear-gradient(90deg, #EFF6FF, #F5F3FF);
 
-            color: #2563EB;
+            border: 1px solid #E0E7FF;
+
+            color: #4338CA;
 
             font-size: 12px;
 
@@ -345,7 +339,7 @@
 
             border-radius: 50%;
 
-            background: #2563EB;
+            background: linear-gradient(135deg, #7C3AED, #2563EB);
 
         }
 
@@ -405,7 +399,7 @@
 
             border-radius: 9px;
 
-            background: #2563EB;
+            background: linear-gradient(135deg, #2563EB, #7C3AED);
 
             color: #FFFFFF;
 
@@ -415,6 +409,8 @@
 
             font-weight: 600;
 
+            box-shadow: 0 8px 20px rgba(37, 99, 235, 0.28);
+
             transition: 0.2s;
 
         }
@@ -422,7 +418,7 @@
 
         .btn-primary:hover {
 
-            background: #1D4ED8;
+            filter: brightness(1.08);
 
             transform: translateY(-1px);
 
@@ -491,7 +487,7 @@
 
             border-radius: 9px;
 
-            background: #2563EB;
+            background: linear-gradient(135deg, #2563EB, #7C3AED);
 
             color: #FFFFFF;
 
@@ -599,6 +595,15 @@
         }
 
 
+        .preview-card:nth-child(2) .preview-card-icon {
+
+            background: #ECFDF5;
+
+            color: #059669;
+
+        }
+
+
         .preview-card strong {
 
             display: block;
@@ -679,6 +684,15 @@
         }
 
 
+        .event-status.status-blue {
+
+            background: #DBEAFE;
+
+            color: #1D4ED8;
+
+        }
+
+
         /* =========================
            RODAPÉ
         ========================= */
@@ -701,13 +715,6 @@
         ========================= */
 
         @media (max-width: 850px) {
-
-            .navbar-links {
-
-                display: none;
-
-            }
-
 
             .content {
 
@@ -808,6 +815,7 @@
 
     <div class="topbar">
 
+        <span class="dot"></span>
         Plataforma de gestão de eventos
 
     </div>
@@ -833,27 +841,10 @@
         </a>
 
 
-        <nav class="navbar-links">
-
-            <a href="#">
-                Início
-            </a>
-
-            <a href="#">
-                Eventos
-            </a>
-
-            <a href="#">
-                Sobre
-            </a>
-
-        </nav>
-
-
         <div class="navbar-actions">
 
             <a
-                href="pages/login.jsp"
+                href="pages/loginUsuario.jsp"
                 class="btn-login">
 
                 Entrar
@@ -862,7 +853,7 @@
 
 
             <a
-                href="pages/cadastro.jsp"
+                href="pages/cadastroUsuario.jsp"
                 class="btn-register">
 
                 Criar conta
@@ -918,7 +909,7 @@
 
 
                 <a
-                    href="pages/login.jsp"
+                    href="pages/loginUsuario.jsp"
                     class="btn-primary">
 
                     Acessar o sistema
@@ -1044,7 +1035,7 @@
                     </div>
 
 
-                    <span class="event-status">
+                    <span class="event-status status-blue">
                         Online
                     </span>
 

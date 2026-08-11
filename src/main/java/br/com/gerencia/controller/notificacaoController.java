@@ -2,6 +2,7 @@ package br.com.gerencia.controller;
 
 import br.com.gerencia.dao.notificacaoDAO;
 import br.com.gerencia.model.notificacaoModel;
+import br.com.gerencia.model.usuarioModel;
 import br.com.gerencia.utils.Conexao;
 
 import javax.servlet.RequestDispatcher;
@@ -10,6 +11,7 @@ import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
 
 import java.io.IOException;
 import java.sql.Connection;
@@ -57,9 +59,9 @@ public class notificacaoController extends HttpServlet {
                 return;
             }
 
-            if ("buscar".equals(action)) {
+            if ("marcarLidas".equals(action)) {
 
-                buscarNotificacao(request, response);
+                marcarTodasComoLidas(request, response);
                 return;
             }
 
@@ -93,12 +95,12 @@ public class notificacaoController extends HttpServlet {
                     cadastrarNotificacao(request, response);
                     break;
 
-                case "editar":
-                    atualizarNotificacao(request, response);
-                    break;
-
                 case "excluir":
                     excluirNotificacao(request, response);
+                    break;
+
+                case "marcarLidas":
+                    marcarTodasComoLidas(request, response);
                     break;
 
                 default:
@@ -117,76 +119,42 @@ public class notificacaoController extends HttpServlet {
                                       HttpServletResponse response)
             throws Exception {
 
-        String statusNotificacao =
-            request.getParameter("status_notificacao");
+        String statusNotificacao = request.getParameter("status_notificacao");
+        String mensagem = request.getParameter("mensagem");
+        String dataEnvioParametro = request.getParameter("data_envio");
+        String idInscricaoParametro = request.getParameter("id_inscricao");
+        String idUsuarioParametro = request.getParameter("id_usuario");
 
-        String dataEnvioParametro =
-            request.getParameter("data_envio");
-
-        String idInscricaoParametro =
-            request.getParameter("id_inscricao");
-
-        String idUsuarioParametro =
-            request.getParameter("id_usuario");
-
-        // ================= VALIDAÇÕES =================
-
-        if (statusNotificacao == null
-                || statusNotificacao.isBlank()) {
-
-            throw new Exception(
-                "Status da notificação obrigatório"
-            );
+        if (statusNotificacao == null || statusNotificacao.isBlank()) {
+            throw new Exception("Status da notificação obrigatório");
         }
 
-        if (idInscricaoParametro == null
-                || idInscricaoParametro.isBlank()) {
-
-            throw new Exception(
-                "Inscrição não informada"
-            );
+        if (mensagem == null || mensagem.isBlank()) {
+            throw new Exception("Mensagem da notificação obrigatória");
         }
 
-        if (idUsuarioParametro == null
-                || idUsuarioParametro.isBlank()) {
-
-            throw new Exception(
-                "Usuário não informado"
-            );
+        if (idInscricaoParametro == null || idInscricaoParametro.isBlank()) {
+            throw new Exception("Inscrição não informada");
         }
 
-        // ================= CONVERSÕES =================
-
-        int idInscricao =
-            Integer.parseInt(idInscricaoParametro);
-
-        int idUsuario =
-            Integer.parseInt(idUsuarioParametro);
-
-        LocalDateTime dataEnvio;
-
-        if (dataEnvioParametro == null
-                || dataEnvioParametro.isBlank()) {
-
-            dataEnvio = LocalDateTime.now();
-
-        } else {
-
-            dataEnvio =
-                LocalDateTime.parse(dataEnvioParametro);
+        if (idUsuarioParametro == null || idUsuarioParametro.isBlank()) {
+            throw new Exception("Usuário não informado");
         }
 
-        // ================= MODEL =================
+        int idInscricao = Integer.parseInt(idInscricaoParametro);
+        int idUsuario = Integer.parseInt(idUsuarioParametro);
 
-        notificacaoModel notificacao =
-            new notificacaoModel(
-                statusNotificacao,
-                dataEnvio,
-                idInscricao,
-                idUsuario
-            );
+        LocalDateTime dataEnvio = (dataEnvioParametro == null || dataEnvioParametro.isBlank())
+            ? LocalDateTime.now()
+            : LocalDateTime.parse(dataEnvioParametro);
 
-        // ================= DAO =================
+        notificacaoModel notificacao = new notificacaoModel(
+            statusNotificacao,
+            mensagem,
+            dataEnvio,
+            idInscricao,
+            idUsuario
+        );
 
         notificacaoDAO.adicionarNotificacao(notificacao);
 
@@ -196,142 +164,33 @@ public class notificacaoController extends HttpServlet {
         );
     }
 
-    // ================= ATUALIZAR =================
-    private void atualizarNotificacao(HttpServletRequest request,
+    // ================= MARCAR TODAS COMO LIDAS (usuário logado) =================
+    private void marcarTodasComoLidas(HttpServletRequest request,
                                       HttpServletResponse response)
             throws Exception {
 
-        String idNotificacaoParametro =
-            request.getParameter("id_notificacao");
+        HttpSession session = request.getSession(false);
 
-        String statusNotificacao =
-            request.getParameter("status_notificacao");
+        usuarioModel usuarioLogado = session != null
+            ? (usuarioModel) session.getAttribute("usuarioLogado")
+            : null;
 
-        String dataEnvioParametro =
-            request.getParameter("data_envio");
-
-        String idInscricaoParametro =
-            request.getParameter("id_inscricao");
-
-        String idUsuarioParametro =
-            request.getParameter("id_usuario");
-
-        // ================= VALIDAÇÕES =================
-
-        if (idNotificacaoParametro == null
-                || idNotificacaoParametro.isBlank()) {
-
-            throw new Exception(
-                "ID da notificação não informado"
-            );
+        if (usuarioLogado == null) {
+            response.sendRedirect(request.getContextPath() + "/pages/loginUsuario.jsp");
+            return;
         }
 
-        if (statusNotificacao == null
-                || statusNotificacao.isBlank()) {
+        notificacaoDAO.marcarTodasComoLidas(usuarioLogado.getId_usuario());
 
-            throw new Exception(
-                "Status da notificação obrigatório"
-            );
+        String voltarPara = request.getParameter("voltarPara");
+
+        if (voltarPara == null || voltarPara.isBlank()) {
+            voltarPara = "organizador".equals(usuarioLogado.getTipo_usuario())
+                ? "/pages/homeOrganizador.jsp"
+                : "/pages/home.jsp";
         }
 
-        if (dataEnvioParametro == null
-                || dataEnvioParametro.isBlank()) {
-
-            throw new Exception(
-                "Data de envio obrigatória"
-            );
-        }
-
-        if (idInscricaoParametro == null
-                || idInscricaoParametro.isBlank()) {
-
-            throw new Exception(
-                "Inscrição não informada"
-            );
-        }
-
-        if (idUsuarioParametro == null
-                || idUsuarioParametro.isBlank()) {
-
-            throw new Exception(
-                "Usuário não informado"
-            );
-        }
-
-        // ================= CONVERSÕES =================
-
-        int idNotificacao =
-            Integer.parseInt(idNotificacaoParametro);
-
-        int idInscricao =
-            Integer.parseInt(idInscricaoParametro);
-
-        int idUsuario =
-            Integer.parseInt(idUsuarioParametro);
-
-        LocalDateTime dataEnvio =
-            LocalDateTime.parse(dataEnvioParametro);
-
-        // ================= MODEL =================
-
-        notificacaoModel notificacao =
-            new notificacaoModel(
-                idNotificacao,
-                statusNotificacao,
-                dataEnvio,
-                idInscricao,
-                idUsuario
-            );
-
-        // ================= DAO =================
-
-        notificacaoDAO.atualizarNotificacao(notificacao);
-
-        response.sendRedirect(
-            request.getContextPath()
-            + "/notificacaoController?action=listar"
-        );
-    }
-
-    // ================= BUSCAR POR ID =================
-    private void buscarNotificacao(HttpServletRequest request,
-                                   HttpServletResponse response)
-            throws Exception {
-
-        String idParametro =
-            request.getParameter("id");
-
-        if (idParametro == null || idParametro.isBlank()) {
-
-            throw new Exception(
-                "ID da notificação não informado"
-            );
-        }
-
-        int idNotificacao =
-            Integer.parseInt(idParametro);
-
-        notificacaoModel notificacao =
-            notificacaoDAO.buscarPorId(idNotificacao);
-
-        if (notificacao == null) {
-
-            throw new Exception(
-                "Notificação não encontrada"
-            );
-        }
-
-        request.setAttribute(
-            "notificacao",
-            notificacao
-        );
-
-        RequestDispatcher dispatcher =
-            request.getRequestDispatcher(
-                "/pages/detalhesNotificacao.jsp"
-            );
-
-        dispatcher.forward(request, response);
+        response.sendRedirect(request.getContextPath() + voltarPara);
     }
 
     // ================= EXCLUIR =================
@@ -339,18 +198,13 @@ public class notificacaoController extends HttpServlet {
                                     HttpServletResponse response)
             throws Exception {
 
-        String idParametro =
-            request.getParameter("id");
+        String idParametro = request.getParameter("id");
 
         if (idParametro == null || idParametro.isBlank()) {
-
-            throw new Exception(
-                "ID da notificação não informado"
-            );
+            throw new Exception("ID da notificação não informado");
         }
 
-        int idNotificacao =
-            Integer.parseInt(idParametro);
+        int idNotificacao = Integer.parseInt(idParametro);
 
         notificacaoDAO.excluirNotificacao(idNotificacao);
 
@@ -365,18 +219,12 @@ public class notificacaoController extends HttpServlet {
                                     HttpServletResponse response)
             throws Exception {
 
-        List<notificacaoModel> lista =
-            notificacaoDAO.listarNotificacoes();
+        List<notificacaoModel> lista = notificacaoDAO.listarNotificacoes();
 
-        request.setAttribute(
-            "listaNotificacoes",
-            lista
-        );
+        request.setAttribute("listaNotificacoes", lista);
 
         RequestDispatcher dispatcher =
-            request.getRequestDispatcher(
-                "/pages/listaNotificacoes.jsp"
-            );
+            request.getRequestDispatcher("/pages/listaNotificacoes.jsp");
 
         dispatcher.forward(request, response);
     }

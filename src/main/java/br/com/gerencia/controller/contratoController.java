@@ -240,7 +240,7 @@ public class contratoController extends HttpServlet {
 
         response.sendRedirect(
             request.getContextPath()
-            + "/contratoController?action=listar"
+            + "/pages/homeOrganizador.jsp"
         );
     }
 
@@ -387,7 +387,7 @@ public class contratoController extends HttpServlet {
 
         response.sendRedirect(
             request.getContextPath()
-            + "/contratoController?action=listar"
+            + "/pages/homeOrganizador.jsp"
         );
     }
 
@@ -454,7 +454,7 @@ public class contratoController extends HttpServlet {
 
         response.sendRedirect(
             request.getContextPath()
-            + "/contratoController?action=listar"
+            + "/pages/homeOrganizador.jsp"
         );
     }
 

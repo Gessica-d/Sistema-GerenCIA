@@ -202,7 +202,6 @@ public class eventoController extends HttpServlet {
         int idOrganizadorInt =
             Integer.parseInt(idOrganizador);
 
-        tipo = tipo.toUpperCase();
 
         eventoModel evento =
             new eventoModel(
@@ -223,7 +222,7 @@ public class eventoController extends HttpServlet {
 
         response.sendRedirect(
             request.getContextPath()
-            + "/eventoController?action=listar"
+            + "/pages/homeOrganizador.jsp"
         );
     }
 
@@ -325,7 +324,6 @@ public class eventoController extends HttpServlet {
         int idOrganizador =
             Integer.parseInt(idOrganizadorParametro);
 
-        tipo = tipo.toUpperCase();
 
         eventoModel evento =
             new eventoModel(
@@ -347,7 +345,7 @@ public class eventoController extends HttpServlet {
 
         response.sendRedirect(
             request.getContextPath()
-            + "/eventoController?action=listar"
+            + "/pages/homeOrganizador.jsp"
         );
     }
 
@@ -412,7 +410,7 @@ public class eventoController extends HttpServlet {
 
         response.sendRedirect(
             request.getContextPath()
-            + "/eventoController?action=listar"
+            + "/pages/homeOrganizador.jsp"
         );
     }
 

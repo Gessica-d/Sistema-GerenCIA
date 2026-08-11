@@ -1,7 +1,12 @@
 package br.com.gerencia.controller;
 
 import br.com.gerencia.dao.inscricaoDAO;
+import br.com.gerencia.dao.eventoDAO;
+import br.com.gerencia.dao.notificacaoDAO;
 import br.com.gerencia.model.inscricaoModel;
+import br.com.gerencia.model.eventoModel;
+import br.com.gerencia.model.notificacaoModel;
+import br.com.gerencia.model.usuarioModel;
 import br.com.gerencia.utils.Conexao;
 
 import javax.servlet.RequestDispatcher;
@@ -10,6 +15,7 @@ import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
 
 import java.io.IOException;
 import java.sql.Connection;
@@ -22,6 +28,8 @@ public class inscricaoController extends HttpServlet {
     private static final long serialVersionUID = 1L;
 
     private inscricaoDAO inscricaoDAO;
+    private eventoDAO eventoDAO;
+    private notificacaoDAO notificacaoDAO;
 
     // ================= INIT =================
     @Override
@@ -32,6 +40,8 @@ public class inscricaoController extends HttpServlet {
             Connection conexao = Conexao.getConnection();
 
             inscricaoDAO = new inscricaoDAO(conexao);
+            eventoDAO = new eventoDAO(conexao);
+            notificacaoDAO = new notificacaoDAO(conexao);
 
         } catch (Exception e) {
 
@@ -54,6 +64,12 @@ public class inscricaoController extends HttpServlet {
             if ("excluir".equals(action)) {
 
                 excluirInscricao(request, response);
+                return;
+            }
+
+            if ("cancelar".equals(action)) {
+
+                cancelarInscricao(request, response);
                 return;
             }
 
@@ -99,6 +115,10 @@ public class inscricaoController extends HttpServlet {
 
                 case "excluir":
                     excluirInscricao(request, response);
+                    break;
+
+                case "cancelar":
+                    cancelarInscricao(request, response);
                     break;
 
                 default:
@@ -422,6 +442,100 @@ public class inscricaoController extends HttpServlet {
             request.getContextPath()
             + "/inscricaoController?action=listar"
         );
+    }
+
+    // =====================================================
+    // CANCELAR INSCRIÇÃO (com promoção automática da lista
+    // de espera + notificações — regra de negócio do escopo)
+    // =====================================================
+    private void cancelarInscricao(HttpServletRequest request,
+                                   HttpServletResponse response)
+            throws Exception {
+
+        String idParametro = request.getParameter("id");
+
+        if (idParametro == null || idParametro.isBlank()) {
+            throw new Exception("ID da inscrição não informado");
+        }
+
+        int idInscricao = Integer.parseInt(idParametro);
+
+        inscricaoModel inscricaoCancelada =
+            inscricaoDAO.buscarPorId(idInscricao);
+
+        if (inscricaoCancelada == null) {
+            throw new Exception("Inscrição não encontrada");
+        }
+
+        // 1) Marca a inscrição como cancelada (mantém o histórico).
+        inscricaoDAO.atualizarStatus(idInscricao, "Cancelada");
+
+        // 2) Só mexe na lista de espera se a inscrição cancelada
+        //    estava CONFIRMADA (cancelar quem já estava esperando
+        //    não libera vaga nenhuma).
+        if ("Confirmada".equals(inscricaoCancelada.getStatus_inscricao())) {
+
+            inscricaoModel promovido =
+                inscricaoDAO.buscarProximoNaFila(inscricaoCancelada.getId_evento());
+
+            if (promovido != null) {
+
+                // Promove o primeiro da fila para confirmado.
+                inscricaoDAO.atualizarStatus(promovido.getId_inscricao(), "Confirmada");
+
+                eventoModel evento =
+                    eventoDAO.buscarPorId(inscricaoCancelada.getId_evento());
+
+                if (evento != null) {
+
+                    String mensagemOrganizador =
+                        "Uma vaga foi liberada em \"" + evento.getNome_evento()
+                        + "\" e o próximo da lista de espera foi promovido automaticamente.";
+
+                    String mensagemUsuario =
+                        "Você foi promovido da lista de espera e agora está CONFIRMADO no evento \""
+                        + evento.getNome_evento() + "\"!";
+
+                    // Notifica o organizador do evento.
+                    notificacaoDAO.adicionarNotificacao(
+                        new notificacaoModel(
+                            "enviada",
+                            mensagemOrganizador,
+                            LocalDateTime.now(),
+                            promovido.getId_inscricao(),
+                            evento.getId_organizador()
+                        )
+                    );
+
+                    // Notifica o usuário que foi promovido.
+                    notificacaoDAO.adicionarNotificacao(
+                        new notificacaoModel(
+                            "enviada",
+                            mensagemUsuario,
+                            LocalDateTime.now(),
+                            promovido.getId_inscricao(),
+                            promovido.getId_usuario()
+                        )
+                    );
+                }
+            }
+        }
+
+        // ================= REDIRECT =================
+
+        HttpSession session = request.getSession(false);
+
+        usuarioModel usuarioLogado = session != null
+            ? (usuarioModel) session.getAttribute("usuarioLogado")
+            : null;
+
+        String destino = "/pages/home.jsp";
+
+        if (usuarioLogado != null && "organizador".equals(usuarioLogado.getTipo_usuario())) {
+            destino = "/pages/homeOrganizador.jsp";
+        }
+
+        response.sendRedirect(request.getContextPath() + destino);
     }
 
     // ================= LISTAR =================

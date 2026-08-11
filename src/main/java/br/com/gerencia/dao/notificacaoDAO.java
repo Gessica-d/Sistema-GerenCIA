@@ -12,51 +12,86 @@ public class notificacaoDAO {
 
     private Connection conexao;
 
-    // Construtor da conexão com o BD
+    // =========================================================
+    // CONSTRUTOR
+    // =========================================================
+
     public notificacaoDAO(Connection conexao) {
         this.conexao = conexao;
     }
 
-    // ================= ADICIONAR NOTIFICAÇÃO =================
-    public void adicionarNotificacao(notificacaoModel notificacao) throws Exception {
+    // =========================================================
+    // ADICIONAR NOTIFICAÇÃO
+    // =========================================================
 
-        String sql = "INSERT INTO notificacao "
-                   + "(status_notificacao, data_envio, id_inscricao, id_usuario) "
-                   + "VALUES (?, ?, ?, ?)";
+    public void adicionarNotificacao(
+            notificacaoModel notificacao)
+            throws Exception {
 
-        PreparedStatement stmt = conexao.prepareStatement(sql);
+        String sql =
+            "INSERT INTO notificacao "
+          + "(status_notificacao, mensagem, data_envio, "
+          + "id_inscricao, id_usuario) "
+          + "VALUES (?, ?, ?, ?, ?)";
 
-        stmt.setString(1, notificacao.getStatus_notificacao());
-        stmt.setObject(2, notificacao.getData_envio());
-        stmt.setInt(3, notificacao.getId_inscricao());
-        stmt.setInt(4, notificacao.getId_usuario());
+        PreparedStatement stmt =
+            conexao.prepareStatement(sql);
+
+        stmt.setString(
+            1,
+            notificacao.getStatus_notificacao()
+        );
+
+        stmt.setString(
+            2,
+            notificacao.getMensagem()
+        );
+
+        stmt.setObject(
+            3,
+            notificacao.getData_envio()
+        );
+
+        stmt.setInt(
+            4,
+            notificacao.getId_inscricao()
+        );
+
+        stmt.setInt(
+            5,
+            notificacao.getId_usuario()
+        );
 
         stmt.executeUpdate();
 
         stmt.close();
     }
 
-    // ================= LISTAR NOTIFICAÇÕES =================
-    public List<notificacaoModel> listarNotificacoes() throws Exception {
+    // =========================================================
+    // LISTAR TODAS
+    // =========================================================
 
-        List<notificacaoModel> notificacoes = new ArrayList<>();
+    public List<notificacaoModel> listarNotificacoes()
+            throws Exception {
 
-        String sql = "SELECT * FROM notificacao";
+        List<notificacaoModel> notificacoes =
+            new ArrayList<notificacaoModel>();
 
-        PreparedStatement stmt = conexao.prepareStatement(sql);
-        ResultSet rs = stmt.executeQuery();
+        String sql =
+            "SELECT * FROM notificacao "
+          + "ORDER BY data_envio DESC";
+
+        PreparedStatement stmt =
+            conexao.prepareStatement(sql);
+
+        ResultSet rs =
+            stmt.executeQuery();
 
         while (rs.next()) {
 
-            notificacaoModel notificacao = new notificacaoModel(
-                rs.getInt("id_notificacao"),
-                rs.getString("status_notificacao"),
-                rs.getTimestamp("data_envio").toLocalDateTime(),
-                rs.getInt("id_inscricao"),
-                rs.getInt("id_usuario")
+            notificacoes.add(
+                montarNotificacao(rs)
             );
-
-            notificacoes.add(notificacao);
         }
 
         rs.close();
@@ -65,28 +100,132 @@ public class notificacaoDAO {
         return notificacoes;
     }
 
-    // ================= BUSCAR NOTIFICAÇÃO POR ID =================
-    public notificacaoModel buscarPorId(int idNotificacao) throws Exception {
+    // =========================================================
+    // LISTAR NOTIFICAÇÕES DO USUÁRIO
+    // =========================================================
+    // ESTE MÉTODO É USADO PELO HOMEORGANIZADOR
+    // =========================================================
 
-        String sql = "SELECT * FROM notificacao WHERE id_notificacao = ?";
+    public List<notificacaoModel> listarPorUsuario(
+            int idUsuario)
+            throws Exception {
 
-        PreparedStatement stmt = conexao.prepareStatement(sql);
+        List<notificacaoModel> notificacoes =
+            new ArrayList<notificacaoModel>();
+
+        String sql =
+            "SELECT * FROM notificacao "
+          + "WHERE id_usuario = ? "
+          + "ORDER BY data_envio DESC "
+          + "LIMIT 20";
+
+        PreparedStatement stmt =
+            conexao.prepareStatement(sql);
+
+        stmt.setInt(1, idUsuario);
+
+        ResultSet rs =
+            stmt.executeQuery();
+
+        while (rs.next()) {
+
+            notificacoes.add(
+                montarNotificacao(rs)
+            );
+        }
+
+        rs.close();
+        stmt.close();
+
+        return notificacoes;
+    }
+
+    // =========================================================
+    // CONTAR NOTIFICAÇÕES NÃO LIDAS
+    // =========================================================
+    // ESTE MÉTODO É USADO PELO HOMEORGANIZADOR
+    // =========================================================
+
+    public int contarNaoLidas(
+            int idUsuario)
+            throws Exception {
+
+        String sql =
+            "SELECT COUNT(*) AS total "
+          + "FROM notificacao "
+          + "WHERE id_usuario = ? "
+          + "AND status_notificacao <> 'lida'";
+
+        PreparedStatement stmt =
+            conexao.prepareStatement(sql);
+
+        stmt.setInt(1, idUsuario);
+
+        ResultSet rs =
+            stmt.executeQuery();
+
+        int total = 0;
+
+        if (rs.next()) {
+
+            total = rs.getInt("total");
+        }
+
+        rs.close();
+        stmt.close();
+
+        return total;
+    }
+
+    // =========================================================
+    // MARCAR TODAS COMO LIDAS
+    // =========================================================
+
+    public void marcarTodasComoLidas(
+            int idUsuario)
+            throws Exception {
+
+        String sql =
+            "UPDATE notificacao "
+          + "SET status_notificacao = 'lida' "
+          + "WHERE id_usuario = ?";
+
+        PreparedStatement stmt =
+            conexao.prepareStatement(sql);
+
+        stmt.setInt(1, idUsuario);
+
+        stmt.executeUpdate();
+
+        stmt.close();
+    }
+
+    // =========================================================
+    // BUSCAR POR ID
+    // =========================================================
+
+    public notificacaoModel buscarPorId(
+            int idNotificacao)
+            throws Exception {
+
+        String sql =
+            "SELECT * FROM notificacao "
+          + "WHERE id_notificacao = ?";
+
+        PreparedStatement stmt =
+            conexao.prepareStatement(sql);
 
         stmt.setInt(1, idNotificacao);
 
-        ResultSet rs = stmt.executeQuery();
+        ResultSet rs =
+            stmt.executeQuery();
 
         notificacaoModel notificacao = null;
 
         if (rs.next()) {
 
-            notificacao = new notificacaoModel(
-                rs.getInt("id_notificacao"),
-                rs.getString("status_notificacao"),
-                rs.getTimestamp("data_envio").toLocalDateTime(),
-                rs.getInt("id_inscricao"),
-                rs.getInt("id_usuario")
-            );
+            notificacao =
+                montarNotificacao(rs);
         }
 
         rs.close();
@@ -95,40 +234,99 @@ public class notificacaoDAO {
         return notificacao;
     }
 
-    // ================= ATUALIZAR NOTIFICAÇÃO =================
-    public void atualizarNotificacao(notificacaoModel notificacao) throws Exception {
+    // =========================================================
+    // ATUALIZAR
+    // =========================================================
 
-        String sql = "UPDATE notificacao SET "
-                   + "status_notificacao = ?, "
-                   + "data_envio = ?, "
-                   + "id_inscricao = ?, "
-                   + "id_usuario = ? "
-                   + "WHERE id_notificacao = ?";
+    public void atualizarNotificacao(
+            notificacaoModel notificacao)
+            throws Exception {
 
-        PreparedStatement stmt = conexao.prepareStatement(sql);
+        String sql =
+            "UPDATE notificacao SET "
+          + "status_notificacao = ?, "
+          + "mensagem = ?, "
+          + "data_envio = ?, "
+          + "id_inscricao = ?, "
+          + "id_usuario = ? "
+          + "WHERE id_notificacao = ?";
 
-        stmt.setString(1, notificacao.getStatus_notificacao());
-        stmt.setObject(2, notificacao.getData_envio());
-        stmt.setInt(3, notificacao.getId_inscricao());
-        stmt.setInt(4, notificacao.getId_usuario());
-        stmt.setInt(5, notificacao.getId_notificacao());
+        PreparedStatement stmt =
+            conexao.prepareStatement(sql);
+
+        stmt.setString(
+            1,
+            notificacao.getStatus_notificacao()
+        );
+
+        stmt.setString(
+            2,
+            notificacao.getMensagem()
+        );
+
+        stmt.setObject(
+            3,
+            notificacao.getData_envio()
+        );
+
+        stmt.setInt(
+            4,
+            notificacao.getId_inscricao()
+        );
+
+        stmt.setInt(
+            5,
+            notificacao.getId_usuario()
+        );
+
+        stmt.setInt(
+            6,
+            notificacao.getId_notificacao()
+        );
 
         stmt.executeUpdate();
 
         stmt.close();
     }
 
-    // ================= EXCLUIR NOTIFICAÇÃO =================
-    public void excluirNotificacao(int idNotificacao) throws Exception {
+    // =========================================================
+    // EXCLUIR
+    // =========================================================
 
-        String sql = "DELETE FROM notificacao WHERE id_notificacao = ?";
+    public void excluirNotificacao(
+            int idNotificacao)
+            throws Exception {
 
-        PreparedStatement stmt = conexao.prepareStatement(sql);
+        String sql =
+            "DELETE FROM notificacao "
+          + "WHERE id_notificacao = ?";
+
+        PreparedStatement stmt =
+            conexao.prepareStatement(sql);
 
         stmt.setInt(1, idNotificacao);
 
         stmt.executeUpdate();
 
         stmt.close();
+    }
+
+    // =========================================================
+    // MÉTODO AUXILIAR
+    // =========================================================
+
+    private notificacaoModel montarNotificacao(
+            ResultSet rs)
+            throws Exception {
+
+        return new notificacaoModel(
+            rs.getInt("id_notificacao"),
+            rs.getString("status_notificacao"),
+            rs.getString("mensagem"),
+            rs.getTimestamp("data_envio")
+              .toLocalDateTime(),
+            rs.getInt("id_inscricao"),
+            rs.getInt("id_usuario")
+        );
     }
 }
