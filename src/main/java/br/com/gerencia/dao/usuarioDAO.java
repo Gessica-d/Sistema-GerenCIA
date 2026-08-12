@@ -134,8 +134,69 @@ public class usuarioDAO {
         return usuario;
     }
 
-    // ================= ATUALIZAR USUARIO =================
-    public void atualizarUsuario(usuarioModel usuario) throws Exception {
+    // ================= BUSCAR USUARIO POR CPF (checagem de duplicidade) =================
+    public usuarioModel buscarPorCPF(String cpf) throws Exception {
+
+        String sql = "SELECT * FROM usuario WHERE CPF_usuario = ?";
+
+        PreparedStatement stmt = conexao.prepareStatement(sql);
+
+        stmt.setString(1, cpf);
+
+        ResultSet rs = stmt.executeQuery();
+
+        usuarioModel usuario = null;
+
+        if (rs.next()) {
+
+            usuario = new usuarioModel(
+                rs.getInt("id_usuario"),
+                rs.getString("CPF_usuario"),
+                rs.getString("tipo_usuario"),
+                rs.getString("nome_usuario"),
+                rs.getString("email_usuario"),
+                rs.getString("senha_usuario"),
+                rs.getString("telefone")
+            );
+        }
+
+        rs.close();
+        stmt.close();
+
+        return usuario;
+    }
+
+    // ================= BUSCAR USUARIO POR EMAIL (checagem de duplicidade) =================
+    public usuarioModel buscarPorEmail(String email) throws Exception {
+
+        String sql = "SELECT * FROM usuario WHERE email_usuario = ?";
+
+        PreparedStatement stmt = conexao.prepareStatement(sql);
+
+        stmt.setString(1, email);
+
+        ResultSet rs = stmt.executeQuery();
+
+        usuarioModel usuario = null;
+
+        if (rs.next()) {
+
+            usuario = new usuarioModel(
+                rs.getInt("id_usuario"),
+                rs.getString("CPF_usuario"),
+                rs.getString("tipo_usuario"),
+                rs.getString("nome_usuario"),
+                rs.getString("email_usuario"),
+                rs.getString("senha_usuario"),
+                rs.getString("telefone")
+            );
+        }
+
+        rs.close();
+        stmt.close();
+
+        return usuario;
+    }
 
         String sql = "UPDATE usuario SET "
                    + "CPF_usuario = ?, "

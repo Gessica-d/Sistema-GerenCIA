@@ -10,6 +10,7 @@ import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
 
 import java.io.IOException;
 import java.sql.Connection;
@@ -161,6 +162,22 @@ public class fornecedorController extends HttpServlet {
             throw new Exception(
                 "Email inválido"
             );
+        }
+
+        if (fornecedorDAO.buscarPorCNPJ(cnpj) != null) {
+
+            HttpSession session = request.getSession(false);
+
+            if (session != null) {
+                session.setAttribute("flashMsg", "Já existe um fornecedor cadastrado com esse CNPJ.");
+            }
+
+            response.sendRedirect(
+                request.getContextPath()
+                + "/pages/homeOrganizador.jsp?view=fornecedores"
+            );
+
+            return;
         }
 
         fornecedorModel fornecedor =

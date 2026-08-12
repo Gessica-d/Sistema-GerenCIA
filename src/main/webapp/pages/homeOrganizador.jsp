@@ -1627,17 +1627,17 @@
         const lista = filtro === 'todos' ? eventosData : eventosData.filter(e => e.status === filtro);
 
         document.getElementById('lista-eventos-organizador').innerHTML = lista.map(ev => `
-            <div class="org-event-card" onclick="abrirDetalheEvento(${ev.id})">
+            <div class="org-event-card" onclick="abrirDetalheEvento(\${ev.id})">
                 <div class="icon-box">📅</div>
                 <div class="info">
-                    <strong>${ev.nome}</strong>
-                    <span class="status-pill ${ev.status === 'ativo' ? '' : ev.status}">${ev.statusLabel}</span>
-                    <div class="meta">${ev.inicio} · ${ev.local}</div>
-                    <div class="meta">${ev.espera > 0 ? '⏳ ' + ev.espera + ' na lista de espera' : ''}</div>
+                    <strong>\${ev.nome}</strong>
+                    <span class="status-pill \${ev.status === 'ativo' ? '' : ev.status}">\${ev.statusLabel}</span>
+                    <div class="meta">\${ev.inicio} · \${ev.local}</div>
+                    <div class="meta">\${ev.espera > 0 ? '⏳ ' + ev.espera + ' na lista de espera' : ''}</div>
                 </div>
                 <div class="capacity">
-                    <strong>${ev.inscritos}/${ev.capacidade}</strong>
-                    <div class="mini-bar"><span class="${corBarra(ev.pct)}" style="width:${ev.pct}%"></span></div>
+                    <strong>\${ev.inscritos}/\${ev.capacidade}</strong>
+                    <div class="mini-bar"><span class="\${corBarra(ev.pct)}" style="width:\${ev.pct}%"></span></div>
                 </div>
             </div>
         `).join('') || '<div class="empty-state">Nenhum evento nesse status.</div>';
@@ -1686,11 +1686,11 @@
             <div class="vinculado-card">
                 <div class="icon-box" style="width:34px;height:34px;border-radius:8px;background:#F5F3FF;color:#7C3AED;display:flex;align-items:center;justify-content:center;">🚚</div>
                 <div class="info">
-                    <strong>${c.nomeFornecedor}</strong>
-                    <span>Responsável: ${c.responsavel}</span>
+                    <strong>\${c.nomeFornecedor}</strong>
+                    <span>Responsável: \${c.responsavel}</span>
                 </div>
-                <span class="status-pill ${c.situacao === 'Pendente' ? 'pendente' : ''}">${c.situacao}</span>
-                <button class="btn-outline" onclick="abrirModalContrato(${c.id})">📄 Ver contrato</button>
+                <span class="status-pill \${c.situacao === 'Pendente' ? 'pendente' : ''}">\${c.situacao}</span>
+                <button class="btn-outline" onclick="abrirModalContrato(\${c.id})">📄 Ver contrato</button>
             </div>
         `).join('') || '<div class="empty-state">Nenhum fornecedor vinculado ainda.</div>';
 
@@ -1713,14 +1713,14 @@
         document.getElementById('lista-fornecedores').innerHTML = lista.map(f => {
             const qtdContratos = contratosData.filter(c => c.idFornecedor === f.id).length;
             return `
-                <div class="fornecedor-card" onclick="abrirDetalheFornecedor(${f.id})">
+                <div class="fornecedor-card" onclick="abrirDetalheFornecedor(\${f.id})">
                     <div class="icon-box">🚚</div>
                     <div class="info">
-                        <strong>${f.nome}</strong>
-                        <div class="meta">${f.categoria} · ${f.cnpj || 'CNPJ não informado'} · ${f.telefone || '—'}</div>
-                        <div class="meta">${qtdContratos} contrato(s)</div>
+                        <strong>\${f.nome}</strong>
+                        <div class="meta">\${f.categoria} · \${f.cnpj || 'CNPJ não informado'} · \${f.telefone || '—'}</div>
+                        <div class="meta">\${qtdContratos} contrato(s)</div>
                     </div>
-                    <span class="cat-tag">${f.categoria}</span>
+                    <span class="cat-tag">\${f.categoria}</span>
                 </div>
             `;
         }).join('') || '<div class="empty-state">Nenhum fornecedor encontrado.</div>';
@@ -1762,19 +1762,19 @@
         const eventosVinculados = [...new Set(contratosDoFornecedor.map(c => c.nomeEvento))];
 
         document.getElementById('det_for_eventos').innerHTML = eventosVinculados.map(nome =>
-            `<span class="chip">📅 ${nome}</span>`
+            `<span class="chip">📅 \${nome}</span>`
         ).join('') || '<span style="font-size:12px;color:#94A3B8;">Nenhum evento vinculado ainda.</span>';
 
         document.getElementById('det_for_contratos').innerHTML = contratosDoFornecedor.map(c => `
             <tr>
-                <td>CTR-${String(c.id).padStart(3, '0')}</td>
-                <td>${c.nomeEvento}</td>
-                <td>${c.dataFormatada}</td>
-                <td>R$ ${c.valorTotal.toFixed(2)}</td>
-                <td>R$ ${c.valorPago.toFixed(2)}</td>
-                <td>${c.responsavel}</td>
-                <td><span class="status-pill ${c.situacao === 'Pendente' ? 'pendente' : ''}">${c.situacao}</span></td>
-                <td><button class="btn-outline" onclick="abrirModalContrato(${c.id})">👁 Ver</button></td>
+                <td>CTR-\${String(c.id).padStart(3, '0')}</td>
+                <td>\${c.nomeEvento}</td>
+                <td>\${c.dataFormatada}</td>
+                <td>R$ \${c.valorTotal.toFixed(2)}</td>
+                <td>R$ \${c.valorPago.toFixed(2)}</td>
+                <td>\${c.responsavel}</td>
+                <td><span class="status-pill \${c.situacao === 'Pendente' ? 'pendente' : ''}">\${c.situacao}</span></td>
+                <td><button class="btn-outline" onclick="abrirModalContrato(\${c.id})">👁 Ver</button></td>
             </tr>
         `).join('') || '<tr><td colspan="8" style="text-align:center;color:#94A3B8;">Nenhum contrato ainda.</td></tr>';
 
@@ -1946,8 +1946,8 @@
             return { x, y, v, mes: meses[i] };
         });
 
-        const linha = pontos.map(p => `${p.x},${p.y}`).join(' ');
-        const area = linha + ` ${pontos[pontos.length-1].x},${padT+chartH} ${pontos[0].x},${padT+chartH}`;
+        const linha = pontos.map(p => `\${p.x},\${p.y}`).join(' ');
+        const area = linha + ` \${pontos[pontos.length-1].x},\${padT+chartH} \${pontos[0].x},\${padT+chartH}`;
 
         let svgHtml = '';
 
@@ -1955,17 +1955,17 @@
         for (let i = 0; i <= 3; i++) {
             const val = Math.round((maxVal / 3) * i);
             const y = padT + chartH - (val / maxVal) * chartH;
-            svgHtml += `<line x1="${padL}" y1="${y}" x2="${W-10}" y2="${y}" stroke="#F1F5F9" stroke-width="1"/>`;
-            svgHtml += `<text x="0" y="${y+3}" font-size="9" fill="#94A3B8">${val}</text>`;
+            svgHtml += `<line x1="\${padL}" y1="\${y}" x2="\${W-10}" y2="\${y}" stroke="#F1F5F9" stroke-width="1"/>`;
+            svgHtml += `<text x="0" y="\${y+3}" font-size="9" fill="#94A3B8">\${val}</text>`;
         }
 
-        svgHtml += `<polyline fill="rgba(124,58,237,0.10)" stroke="none" points="${area}"/>`;
-        svgHtml += `<polyline fill="none" stroke="#7C3AED" stroke-width="2.5" points="${linha}"/>`;
+        svgHtml += `<polyline fill="rgba(124,58,237,0.10)" stroke="none" points="\${area}"/>`;
+        svgHtml += `<polyline fill="none" stroke="#7C3AED" stroke-width="2.5" points="\${linha}"/>`;
 
         pontos.forEach(p => {
-            svgHtml += `<circle cx="${p.x}" cy="${p.y}" r="4" fill="#7C3AED" stroke="#FFFFFF" stroke-width="1.5"
-                          class="chart-point" data-mes="${p.mes}" data-valor="${p.v}"/>`;
-            svgHtml += `<text x="${p.x}" y="${H-4}" font-size="9" fill="#94A3B8" text-anchor="middle">${p.mes}</text>`;
+            svgHtml += `<circle cx="\${p.x}" cy="\${p.y}" r="4" fill="#7C3AED" stroke="#FFFFFF" stroke-width="1.5"
+                          class="chart-point" data-mes="\${p.mes}" data-valor="\${p.v}"/>`;
+            svgHtml += `<text x="\${p.x}" y="\${H-4}" font-size="9" fill="#94A3B8" text-anchor="middle">\${p.mes}</text>`;
         });
 
         svg.innerHTML = svgHtml;

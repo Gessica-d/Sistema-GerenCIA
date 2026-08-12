@@ -99,6 +99,37 @@ public class fornecedorDAO {
         return fornecedor;
     }
 
+    // ================= BUSCAR FORNECEDOR POR CNPJ (checagem de duplicidade) =================
+    public fornecedorModel buscarPorCNPJ(String cnpj) throws Exception {
+
+        String sql = "SELECT * FROM fornecedor WHERE CNPJ_fornecedor = ?";
+
+        PreparedStatement stmt = conexao.prepareStatement(sql);
+
+        stmt.setString(1, cnpj);
+
+        ResultSet rs = stmt.executeQuery();
+
+        fornecedorModel fornecedor = null;
+
+        if (rs.next()) {
+
+            fornecedor = new fornecedorModel(
+                rs.getInt("id_fornecedor"),
+                rs.getString("nome_fornecedor"),
+                rs.getString("CNPJ_fornecedor"),
+                rs.getString("telefone_fornecedor"),
+                rs.getString("categoria_fornecedor"),
+                rs.getString("email")
+            );
+        }
+
+        rs.close();
+        stmt.close();
+
+        return fornecedor;
+    }
+
     // ================= ATUALIZAR FORNECEDOR =================
     public void atualizarFornecedor(fornecedorModel fornecedor) throws Exception {
 

@@ -3,6 +3,7 @@ package br.com.gerencia.dao;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -12,25 +13,18 @@ public class inscricaoDAO {
 
     private Connection conexao;
 
-    // =========================================================
-    // CONSTRUTOR
-    // =========================================================
-
+    // Construtor da conexão com o BD
     public inscricaoDAO(Connection conexao) {
         this.conexao = conexao;
     }
 
-    // =========================================================
-    // ADICIONAR INSCRIÇÃO
-    // =========================================================
-
+    // ================= ADICIONAR INSCRIÇÃO =================
     public void adicionarInscricao(inscricaoModel inscricao) throws Exception {
 
-        String sql =
-            "INSERT INTO inscricao "
-          + "(id_evento, id_usuario, data_inscricao, status_inscricao, "
-          + "metodo_inscricao, checkin, posicao_fila) "
-          + "VALUES (?, ?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO inscricao "
+                   + "(id_evento, id_usuario, data_inscricao, status_inscricao, "
+                   + "metodo_inscricao, checkin, posicao_fila) "
+                   + "VALUES (?, ?, ?, ?, ?, ?, ?)";
 
         PreparedStatement stmt = conexao.prepareStatement(sql);
 
@@ -39,7 +33,11 @@ public class inscricaoDAO {
         stmt.setObject(3, inscricao.getData_inscricao());
         stmt.setString(4, inscricao.getStatus_inscricao());
         stmt.setString(5, inscricao.getMetodo_inscricao());
-        stmt.setBoolean(6, inscricao.isCheckin());
+        if (inscricao.getCheckin() != null) {
+            stmt.setTimestamp(6, Timestamp.valueOf(inscricao.getCheckin()));
+        } else {
+            stmt.setNull(6, java.sql.Types.TIMESTAMP);
+        }
         stmt.setInt(7, inscricao.getPosicao_fila());
 
         stmt.executeUpdate();
@@ -47,27 +45,30 @@ public class inscricaoDAO {
         stmt.close();
     }
 
-    // =========================================================
-    // LISTAR TODAS AS INSCRIÇÕES
-    // =========================================================
-
+    // ================= LISTAR INSCRIÇÕES =================
     public List<inscricaoModel> listarInscricoes() throws Exception {
 
-        List<inscricaoModel> inscricoes =
-            new ArrayList<inscricaoModel>();
+        List<inscricaoModel> inscricoes = new ArrayList<>();
 
-        String sql =
-            "SELECT * FROM inscricao";
+        String sql = "SELECT * FROM inscricao";
 
-        PreparedStatement stmt =
-            conexao.prepareStatement(sql);
-
-        ResultSet rs =
-            stmt.executeQuery();
+        PreparedStatement stmt = conexao.prepareStatement(sql);
+        ResultSet rs = stmt.executeQuery();
 
         while (rs.next()) {
 
-            inscricoes.add(montarInscricao(rs));
+            inscricaoModel inscricao = new inscricaoModel(
+                rs.getInt("id_inscricao"),
+                rs.getInt("id_evento"),
+                rs.getInt("id_usuario"),
+                rs.getTimestamp("data_inscricao").toLocalDateTime(),
+                rs.getString("status_inscricao"),
+                rs.getString("metodo_inscricao"),
+                lerCheckin(rs),
+                rs.getInt("posicao_fila")
+            );
+
+            inscricoes.add(inscricao);
         }
 
         rs.close();
@@ -76,30 +77,31 @@ public class inscricaoDAO {
         return inscricoes;
     }
 
-    // =========================================================
-    // BUSCAR POR ID
-    // =========================================================
+    // ================= BUSCAR INSCRIÇÃO POR ID =================
+    public inscricaoModel buscarPorId(int idInscricao) throws Exception {
 
-    public inscricaoModel buscarPorId(int idInscricao)
-            throws Exception {
+        String sql = "SELECT * FROM inscricao WHERE id_inscricao = ?";
 
-        String sql =
-            "SELECT * FROM inscricao "
-          + "WHERE id_inscricao = ?";
-
-        PreparedStatement stmt =
-            conexao.prepareStatement(sql);
+        PreparedStatement stmt = conexao.prepareStatement(sql);
 
         stmt.setInt(1, idInscricao);
 
-        ResultSet rs =
-            stmt.executeQuery();
+        ResultSet rs = stmt.executeQuery();
 
         inscricaoModel inscricao = null;
 
         if (rs.next()) {
 
-            inscricao = montarInscricao(rs);
+            inscricao = new inscricaoModel(
+                rs.getInt("id_inscricao"),
+                rs.getInt("id_evento"),
+                rs.getInt("id_usuario"),
+                rs.getTimestamp("data_inscricao").toLocalDateTime(),
+                rs.getString("status_inscricao"),
+                rs.getString("metodo_inscricao"),
+                lerCheckin(rs),
+                rs.getInt("posicao_fila")
+            );
         }
 
         rs.close();
@@ -108,87 +110,45 @@ public class inscricaoDAO {
         return inscricao;
     }
 
-    // =========================================================
-    // ATUALIZAR INSCRIÇÃO
-    // =========================================================
+    // ================= ATUALIZAR INSCRIÇÃO =================
+    public void atualizarInscricao(inscricaoModel inscricao) throws Exception {
 
-    public void atualizarInscricao(
-            inscricaoModel inscricao)
-            throws Exception {
+        String sql = "UPDATE inscricao SET "
+                   + "id_evento = ?, "
+                   + "id_usuario = ?, "
+                   + "data_inscricao = ?, "
+                   + "status_inscricao = ?, "
+                   + "metodo_inscricao = ?, "
+                   + "checkin = ?, "
+                   + "posicao_fila = ? "
+                   + "WHERE id_inscricao = ?";
 
-        String sql =
-            "UPDATE inscricao SET "
-          + "id_evento = ?, "
-          + "id_usuario = ?, "
-          + "data_inscricao = ?, "
-          + "status_inscricao = ?, "
-          + "metodo_inscricao = ?, "
-          + "checkin = ?, "
-          + "posicao_fila = ? "
-          + "WHERE id_inscricao = ?";
+        PreparedStatement stmt = conexao.prepareStatement(sql);
 
-        PreparedStatement stmt =
-            conexao.prepareStatement(sql);
-
-        stmt.setInt(
-            1,
-            inscricao.getId_evento()
-        );
-
-        stmt.setInt(
-            2,
-            inscricao.getId_usuario()
-        );
-
-        stmt.setObject(
-            3,
-            inscricao.getData_inscricao()
-        );
-
-        stmt.setString(
-            4,
-            inscricao.getStatus_inscricao()
-        );
-
-        stmt.setString(
-            5,
-            inscricao.getMetodo_inscricao()
-        );
-
-        stmt.setBoolean(
-            6,
-            inscricao.isCheckin()
-        );
-
-        stmt.setInt(
-            7,
-            inscricao.getPosicao_fila()
-        );
-
-        stmt.setInt(
-            8,
-            inscricao.getId_inscricao()
-        );
+        stmt.setInt(1, inscricao.getId_evento());
+        stmt.setInt(2, inscricao.getId_usuario());
+        stmt.setObject(3, inscricao.getData_inscricao());
+        stmt.setString(4, inscricao.getStatus_inscricao());
+        stmt.setString(5, inscricao.getMetodo_inscricao());
+        if (inscricao.getCheckin() != null) {
+            stmt.setTimestamp(6, Timestamp.valueOf(inscricao.getCheckin()));
+        } else {
+            stmt.setNull(6, java.sql.Types.TIMESTAMP);
+        }
+        stmt.setInt(7, inscricao.getPosicao_fila());
+        stmt.setInt(8, inscricao.getId_inscricao());
 
         stmt.executeUpdate();
 
         stmt.close();
     }
 
-    // =========================================================
-    // EXCLUIR
-    // =========================================================
+    // ================= EXCLUIR INSCRIÇÃO =================
+    public void excluirInscricao(int idInscricao) throws Exception {
 
-    public void excluirInscricao(
-            int idInscricao)
-            throws Exception {
+        String sql = "DELETE FROM inscricao WHERE id_inscricao = ?";
 
-        String sql =
-            "DELETE FROM inscricao "
-          + "WHERE id_inscricao = ?";
-
-        PreparedStatement stmt =
-            conexao.prepareStatement(sql);
+        PreparedStatement stmt = conexao.prepareStatement(sql);
 
         stmt.setInt(1, idInscricao);
 
@@ -197,22 +157,12 @@ public class inscricaoDAO {
         stmt.close();
     }
 
-    // =========================================================
-    // ATUALIZAR SOMENTE O STATUS
-    // =========================================================
+    // ================= ATUALIZAR SOMENTE O STATUS =================
+    public void atualizarStatus(int idInscricao, String novoStatus) throws Exception {
 
-    public void atualizarStatus(
-            int idInscricao,
-            String novoStatus)
-            throws Exception {
+        String sql = "UPDATE inscricao SET status_inscricao = ? WHERE id_inscricao = ?";
 
-        String sql =
-            "UPDATE inscricao "
-          + "SET status_inscricao = ? "
-          + "WHERE id_inscricao = ?";
-
-        PreparedStatement stmt =
-            conexao.prepareStatement(sql);
+        PreparedStatement stmt = conexao.prepareStatement(sql);
 
         stmt.setString(1, novoStatus);
         stmt.setInt(2, idInscricao);
@@ -222,34 +172,34 @@ public class inscricaoDAO {
         stmt.close();
     }
 
-    // =========================================================
-    // BUSCAR PRÓXIMO DA FILA DE ESPERA
-    // =========================================================
+    // ================= PRÓXIMO DA LISTA DE ESPERA DE UM EVENTO =================
+    // Retorna a inscrição mais antiga com status 'Espera' para o evento informado
+    // (respeita a ordem de inscrição, do primeiro que entrou na fila).
+    public inscricaoModel buscarProximoNaFila(int idEvento) throws Exception {
 
-    public inscricaoModel buscarProximoNaFila(
-            int idEvento)
-            throws Exception {
+        String sql = "SELECT * FROM inscricao "
+                   + "WHERE id_evento = ? AND status_inscricao = 'Espera' "
+                   + "ORDER BY data_inscricao ASC LIMIT 1";
 
-        String sql =
-            "SELECT * FROM inscricao "
-          + "WHERE id_evento = ? "
-          + "AND status_inscricao = 'Espera' "
-          + "ORDER BY data_inscricao ASC "
-          + "LIMIT 1";
-
-        PreparedStatement stmt =
-            conexao.prepareStatement(sql);
-
+        PreparedStatement stmt = conexao.prepareStatement(sql);
         stmt.setInt(1, idEvento);
 
-        ResultSet rs =
-            stmt.executeQuery();
+        ResultSet rs = stmt.executeQuery();
 
         inscricaoModel inscricao = null;
 
         if (rs.next()) {
 
-            inscricao = montarInscricao(rs);
+            inscricao = new inscricaoModel(
+                rs.getInt("id_inscricao"),
+                rs.getInt("id_evento"),
+                rs.getInt("id_usuario"),
+                rs.getTimestamp("data_inscricao").toLocalDateTime(),
+                rs.getString("status_inscricao"),
+                rs.getString("metodo_inscricao"),
+                lerCheckin(rs),
+                rs.getInt("posicao_fila")
+            );
         }
 
         rs.close();
@@ -258,34 +208,20 @@ public class inscricaoDAO {
         return inscricao;
     }
 
-    // =========================================================
-    // CONTAR INSCRIÇÕES CONFIRMADAS
-    // =========================================================
-    // ESTE É UM DOS MÉTODOS QUE O HOMEORGANIZADOR USA
-    // =========================================================
+    // ================= QUANTIDADE CONFIRMADA EM UM EVENTO =================
+    public int contarConfirmados(int idEvento) throws Exception {
 
-    public int contarConfirmados(
-            int idEvento)
-            throws Exception {
+        String sql = "SELECT COUNT(*) AS total FROM inscricao "
+                   + "WHERE id_evento = ? AND status_inscricao = 'Confirmada'";
 
-        String sql =
-            "SELECT COUNT(*) AS total "
-          + "FROM inscricao "
-          + "WHERE id_evento = ? "
-          + "AND status_inscricao = 'Confirmada'";
-
-        PreparedStatement stmt =
-            conexao.prepareStatement(sql);
-
+        PreparedStatement stmt = conexao.prepareStatement(sql);
         stmt.setInt(1, idEvento);
 
-        ResultSet rs =
-            stmt.executeQuery();
+        ResultSet rs = stmt.executeQuery();
 
         int total = 0;
 
         if (rs.next()) {
-
             total = rs.getInt("total");
         }
 
@@ -295,40 +231,33 @@ public class inscricaoDAO {
         return total;
     }
 
-    // =========================================================
-    // LISTAR POR EVENTO E STATUS
-    // =========================================================
-    // ESTE É O MÉTODO QUE ESTÁ DANDO ERRO NAS LINHAS 136 E 1210
-    // =========================================================
+    // ================= LISTAR INSCRIÇÕES DE UM EVENTO POR STATUS =================
+    public List<inscricaoModel> listarPorEventoEStatus(int idEvento, String status) throws Exception {
 
-    public List<inscricaoModel> listarPorEventoEStatus(
-            int idEvento,
-            String status)
-            throws Exception {
+        List<inscricaoModel> lista = new ArrayList<>();
 
-        List<inscricaoModel> lista =
-            new ArrayList<inscricaoModel>();
+        String sql = "SELECT * FROM inscricao "
+                   + "WHERE id_evento = ? AND status_inscricao = ? "
+                   + "ORDER BY data_inscricao ASC";
 
-        String sql =
-            "SELECT * FROM inscricao "
-          + "WHERE id_evento = ? "
-          + "AND status_inscricao = ? "
-          + "ORDER BY data_inscricao ASC";
-
-        PreparedStatement stmt =
-            conexao.prepareStatement(sql);
-
+        PreparedStatement stmt = conexao.prepareStatement(sql);
         stmt.setInt(1, idEvento);
         stmt.setString(2, status);
 
-        ResultSet rs =
-            stmt.executeQuery();
+        ResultSet rs = stmt.executeQuery();
 
         while (rs.next()) {
 
-            lista.add(
-                montarInscricao(rs)
-            );
+            lista.add(new inscricaoModel(
+                rs.getInt("id_inscricao"),
+                rs.getInt("id_evento"),
+                rs.getInt("id_usuario"),
+                rs.getTimestamp("data_inscricao").toLocalDateTime(),
+                rs.getString("status_inscricao"),
+                rs.getString("metodo_inscricao"),
+                lerCheckin(rs),
+                rs.getInt("posicao_fila")
+            ));
         }
 
         rs.close();
@@ -337,24 +266,9 @@ public class inscricaoDAO {
         return lista;
     }
 
-    // =========================================================
-    // MÉTODO AUXILIAR
-    // =========================================================
-
-    private inscricaoModel montarInscricao(
-            ResultSet rs)
-            throws Exception {
-
-        return new inscricaoModel(
-            rs.getInt("id_inscricao"),
-            rs.getInt("id_evento"),
-            rs.getInt("id_usuario"),
-            rs.getTimestamp("data_inscricao")
-              .toLocalDateTime(),
-            rs.getString("status_inscricao"),
-            rs.getString("metodo_inscricao"),
-            rs.getBoolean("checkin"),
-            rs.getInt("posicao_fila")
-        );
+    // ================= HELPER: leitura null-safe do checkin =================
+    private java.time.LocalDateTime lerCheckin(ResultSet rs) throws Exception {
+        Timestamp ts = rs.getTimestamp("checkin");
+        return ts != null ? ts.toLocalDateTime() : null;
     }
 }

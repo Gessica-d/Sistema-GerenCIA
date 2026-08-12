@@ -194,11 +194,7 @@ public class inscricaoController extends HttpServlet {
             );
         }
 
-        if (checkinParametro == null
-                || checkinParametro.isBlank()) {
-
-            checkinParametro = "false";
-        }
+        // checkin fica nulo até o usuário realmente fazer check-in no evento
 
         if (posicaoFilaParametro == null
                 || posicaoFilaParametro.isBlank()) {
@@ -217,8 +213,10 @@ public class inscricaoController extends HttpServlet {
         LocalDateTime dataInscricao =
             LocalDateTime.parse(dataInscricaoParametro);
 
-        boolean checkin =
-            Boolean.parseBoolean(checkinParametro);
+        LocalDateTime checkin =
+            (checkinParametro == null || checkinParametro.isBlank())
+                ? null
+                : LocalDateTime.parse(checkinParametro);
 
         int posicaoFila =
             Integer.parseInt(posicaoFilaParametro);
@@ -321,11 +319,7 @@ public class inscricaoController extends HttpServlet {
             );
         }
 
-        if (checkinParametro == null
-                || checkinParametro.isBlank()) {
-
-            checkinParametro = "false";
-        }
+        // checkin fica nulo até o usuário realmente fazer check-in no evento
 
         if (posicaoFilaParametro == null
                 || posicaoFilaParametro.isBlank()) {
@@ -347,8 +341,10 @@ public class inscricaoController extends HttpServlet {
         LocalDateTime dataInscricao =
             LocalDateTime.parse(dataInscricaoParametro);
 
-        boolean checkin =
-            Boolean.parseBoolean(checkinParametro);
+        LocalDateTime checkin =
+            (checkinParametro == null || checkinParametro.isBlank())
+                ? null
+                : LocalDateTime.parse(checkinParametro);
 
         int posicaoFila =
             Integer.parseInt(posicaoFilaParametro);

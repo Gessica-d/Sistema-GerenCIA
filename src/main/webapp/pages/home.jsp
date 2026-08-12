@@ -1126,23 +1126,23 @@
             : '<button class="btn-solid">Inscrever-se</button>';
 
         return `
-            <div class="event-card" data-categoria="${ev.categoria}" data-id="${ev.id}">
-                <div class="thumb" style="background-image:url('${ev.imagem}')">
-                    ${ev.lotado ? '<span class="tag-lotado">Lotado</span>' : ''}
-                    <button class="${favClasse}" onclick="alternarFavorito(${ev.id}, this)">${coracao}</button>
+            <div class="event-card" data-categoria="\${ev.categoria}" data-id="\${ev.id}">
+                <div class="thumb" style="background-image:url('\${ev.imagem}')">
+                    \${ev.lotado ? '<span class="tag-lotado">Lotado</span>' : ''}
+                    <button class="\${favClasse}" onclick="alternarFavorito(\${ev.id}, this)">\${coracao}</button>
                 </div>
                 <div class="body">
                     <div class="row-top">
-                        <span class="cat-tag">${ev.categoria}</span>
-                        <span class="price-tag">${ev.preco}</span>
+                        <span class="cat-tag">\${ev.categoria}</span>
+                        <span class="price-tag">\${ev.preco}</span>
                     </div>
-                    <h3>${ev.nome}</h3>
-                    <div class="event-meta">📍 ${ev.local}</div>
-                    <div class="event-meta">📅 ${ev.data}</div>
-                    <div class="${barraClasse}"><span style="width:${ev.ocupacao}%"></span></div>
+                    <h3>\${ev.nome}</h3>
+                    <div class="event-meta">📍 \${ev.local}</div>
+                    <div class="event-meta">📅 \${ev.data}</div>
+                    <div class="\${barraClasse}"><span style="width:\${ev.ocupacao}%"></span></div>
                     <div class="actions">
                         <button class="btn-outline">Ver Detalhes</button>
-                        ${botaoAcao}
+                        \${botaoAcao}
                     </div>
                 </div>
             </div>

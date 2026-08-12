@@ -6,17 +6,29 @@ import br.com.gerencia.utils.Conexao;
 
 import javax.servlet.RequestDispatcher;
 import javax.servlet.ServletException;
+import javax.servlet.annotation.MultipartConfig;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.Part;
 
+import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.sql.Connection;
 import java.time.LocalDateTime;
 import java.util.List;
 
 @WebServlet("/contratoController")
+@MultipartConfig(
+    maxFileSize = 10 * 1024 * 1024,       // 10MB por arquivo
+    maxRequestSize = 12 * 1024 * 1024
+)
 public class contratoController extends HttpServlet {
 
     private static final long serialVersionUID = 1L;
@@ -39,6 +51,67 @@ public class contratoController extends HttpServlet {
                 "Erro ao iniciar contratoDAO: " + e.getMessage()
             );
         }
+    }
+
+    // =====================================================
+    // SALVAR ARQUIVO DO CONTRATO (upload)
+    // Retorna o caminho relativo salvo (ex: "uploads/contratos/arquivo.pdf")
+    // ou null se nenhum arquivo novo foi enviado.
+    // =====================================================
+    private String salvarArquivoContrato(HttpServletRequest request) throws Exception {
+
+        Part filePart = request.getPart("arquivo_contrato");
+
+        if (filePart == null || filePart.getSize() == 0) {
+            return null;
+        }
+
+        String nomeOriginal = getNomeArquivo(filePart);
+
+        if (nomeOriginal == null || nomeOriginal.isBlank()) {
+            return null;
+        }
+
+        String extensao = "";
+        int pontoIdx = nomeOriginal.lastIndexOf('.');
+        if (pontoIdx >= 0) {
+            extensao = nomeOriginal.substring(pontoIdx);
+        }
+
+        String nomeArmazenado = "ctr_" + System.currentTimeMillis() + extensao;
+
+        String caminhoReal = getServletContext().getRealPath("/uploads/contratos/");
+
+        File pastaDestino = new File(caminhoReal);
+
+        if (!pastaDestino.exists()) {
+            pastaDestino.mkdirs();
+        }
+
+        Path destino = Paths.get(caminhoReal, nomeArmazenado);
+
+        try (InputStream in = filePart.getInputStream()) {
+            Files.copy(in, destino, StandardCopyOption.REPLACE_EXISTING);
+        }
+
+        return "uploads/contratos/" + nomeArmazenado;
+    }
+
+    private String getNomeArquivo(Part part) {
+
+        String header = part.getHeader("content-disposition");
+
+        for (String token : header.split(";")) {
+
+            if (token.trim().startsWith("filename")) {
+
+                return token.substring(token.indexOf('=') + 1)
+                    .trim()
+                    .replace("\"", "");
+            }
+        }
+
+        return null;
     }
 
     // ================= GET =================
@@ -141,8 +214,7 @@ public class contratoController extends HttpServlet {
         String objetoContrato =
             request.getParameter("objeto_contrato");
 
-        String anexoContrato =
-            request.getParameter("anexo_contrato");
+        String anexoContrato = salvarArquivoContrato(request);
 
         // ================= VALIDAÇÕES =================
 
@@ -276,8 +348,12 @@ public class contratoController extends HttpServlet {
         String objetoContrato =
             request.getParameter("objeto_contrato");
 
-        String anexoContrato =
-            request.getParameter("anexo_contrato");
+        String anexoAtual =
+            request.getParameter("anexo_contrato_atual");
+
+        String anexoNovo = salvarArquivoContrato(request);
+
+        String anexoContrato = (anexoNovo != null) ? anexoNovo : anexoAtual;
 
         // ================= VALIDAÇÕES =================
 

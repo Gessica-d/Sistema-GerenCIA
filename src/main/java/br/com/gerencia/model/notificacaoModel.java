@@ -11,24 +11,16 @@ public class notificacaoModel {
     private int id_inscricao;
     private int id_usuario;
 
-    // =========================================================
-    // CONSTRUTOR VAZIO
-    // =========================================================
-
+    // Construtor vazio
     public notificacaoModel() {
     }
 
-    // =========================================================
-    // CONSTRUTOR SEM ID
-    // =========================================================
-
-    public notificacaoModel(
-            String status_notificacao,
-            String mensagem,
-            LocalDateTime data_envio,
-            int id_inscricao,
-            int id_usuario) {
-
+    // Construtor sem ID
+    public notificacaoModel(String status_notificacao,
+                            String mensagem,
+                            LocalDateTime data_envio,
+                            int id_inscricao,
+                            int id_usuario) {
         this.status_notificacao = status_notificacao;
         this.mensagem = mensagem;
         this.data_envio = data_envio;
@@ -36,18 +28,13 @@ public class notificacaoModel {
         this.id_usuario = id_usuario;
     }
 
-    // =========================================================
-    // CONSTRUTOR COMPLETO
-    // =========================================================
-
-    public notificacaoModel(
-            int id_notificacao,
-            String status_notificacao,
-            String mensagem,
-            LocalDateTime data_envio,
-            int id_inscricao,
-            int id_usuario) {
-
+    // Construtor completo
+    public notificacaoModel(int id_notificacao,
+                            String status_notificacao,
+                            String mensagem,
+                            LocalDateTime data_envio,
+                            int id_inscricao,
+                            int id_usuario) {
         this.id_notificacao = id_notificacao;
         this.status_notificacao = status_notificacao;
         this.mensagem = mensagem;
@@ -56,9 +43,7 @@ public class notificacaoModel {
         this.id_usuario = id_usuario;
     }
 
-    // =========================================================
-    // GET ID NOTIFICAÇÃO
-    // =========================================================
+    // Getters e Setters
 
     public int getId_notificacao() {
         return id_notificacao;
@@ -68,25 +53,13 @@ public class notificacaoModel {
         this.id_notificacao = id_notificacao;
     }
 
-    // =========================================================
-    // GET STATUS
-    // =========================================================
-
     public String getStatus_notificacao() {
         return status_notificacao;
     }
 
-    public void setStatus_notificacao(
-            String status_notificacao) {
-
+    public void setStatus_notificacao(String status_notificacao) {
         this.status_notificacao = status_notificacao;
     }
-
-    // =========================================================
-    // GET MENSAGEM
-    // =========================================================
-    // ESTE É O MÉTODO QUE ESTÁ DANDO ERRO NA LINHA 724
-    // =========================================================
 
     public String getMensagem() {
         return mensagem;
@@ -96,23 +69,13 @@ public class notificacaoModel {
         this.mensagem = mensagem;
     }
 
-    // =========================================================
-    // GET DATA
-    // =========================================================
-
     public LocalDateTime getData_envio() {
         return data_envio;
     }
 
-    public void setData_envio(
-            LocalDateTime data_envio) {
-
+    public void setData_envio(LocalDateTime data_envio) {
         this.data_envio = data_envio;
     }
-
-    // =========================================================
-    // GET ID INSCRIÇÃO
-    // =========================================================
 
     public int getId_inscricao() {
         return id_inscricao;
@@ -121,10 +84,6 @@ public class notificacaoModel {
     public void setId_inscricao(int id_inscricao) {
         this.id_inscricao = id_inscricao;
     }
-
-    // =========================================================
-    // GET ID USUÁRIO
-    // =========================================================
 
     public int getId_usuario() {
         return id_usuario;
