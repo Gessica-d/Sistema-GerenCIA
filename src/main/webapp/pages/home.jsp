@@ -1,5 +1,18 @@
 <%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
 <%@ page import="br.com.gerencia.model.usuarioModel"%>
+<%@ page import="br.com.gerencia.model.eventoModel"%>
+<%@ page import="br.com.gerencia.model.inscricaoModel"%>
+<%@ page import="br.com.gerencia.model.favoritoModel"%>
+<%@ page import="br.com.gerencia.model.notificacaoModel"%>
+<%@ page import="br.com.gerencia.dao.eventoDAO"%>
+<%@ page import="br.com.gerencia.dao.inscricaoDAO"%>
+<%@ page import="br.com.gerencia.dao.favoritoDAO"%>
+<%@ page import="br.com.gerencia.dao.notificacaoDAO"%>
+<%@ page import="br.com.gerencia.dao.usuarioDAO"%>
+<%@ page import="br.com.gerencia.utils.Conexao"%>
+<%@ page import="java.util.List"%>
+<%@ page import="java.util.ArrayList"%>
+<%@ page import="java.time.format.DateTimeFormatter"%>
 <%
     // ================= GUARDA DE SESSÃO =================
     usuarioModel usuarioLogado = (usuarioModel) session.getAttribute("usuarioLogado");
@@ -18,6 +31,58 @@
             ? ("" + partes[0].charAt(0) + partes[partes.length - 1].charAt(0)).toUpperCase()
             : ("" + partes[0].charAt(0)).toUpperCase();
     }
+
+    // ================= DADOS REAIS DO BANCO =================
+    eventoDAO eventoDAOJsp = new eventoDAO(Conexao.getConnection());
+    inscricaoDAO inscricaoDAOJsp = new inscricaoDAO(Conexao.getConnection());
+    favoritoDAO favoritoDAOJsp = new favoritoDAO(Conexao.getConnection());
+    usuarioDAO usuarioDAOJsp = new usuarioDAO(Conexao.getConnection());
+
+    DateTimeFormatter fmtData = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+    DateTimeFormatter fmtHora = DateTimeFormatter.ofPattern("HH:mm");
+
+    // eventos públicos e ativos (o que o cliente pode ver/se inscrever)
+    List<eventoModel> eventosAtivos = new ArrayList<eventoModel>();
+    for (eventoModel ev : eventoDAOJsp.listarEventos()) {
+        if ("ativo".equals(ev.getStatus_evento())) {
+            eventosAtivos.add(ev);
+        }
+    }
+
+    // inscrições do usuário logado (em todos os status)
+    List<inscricaoModel> minhasInscricoes = new ArrayList<inscricaoModel>();
+    for (inscricaoModel insc : inscricaoDAOJsp.listarInscricoes()) {
+        if (insc.getId_usuario() == usuarioLogado.getId_usuario()) {
+            minhasInscricoes.add(insc);
+        }
+    }
+
+    // favoritos do usuário logado
+    List<favoritoModel> meusFavoritos = new ArrayList<favoritoModel>();
+    for (favoritoModel fav : favoritoDAOJsp.listarFavoritos()) {
+        if (fav.getId_usuario() == usuarioLogado.getId_usuario()) {
+            meusFavoritos.add(fav);
+        }
+    }
+
+    // notificações do usuário logado
+    notificacaoDAO notificacaoDAOJsp = new notificacaoDAO(Conexao.getConnection());
+    List<notificacaoModel> minhasNotificacoes = notificacaoDAOJsp.listarPorUsuario(usuarioLogado.getId_usuario());
+    int notifNaoLidas = notificacaoDAOJsp.contarNaoLidas(usuarioLogado.getId_usuario());
+    DateTimeFormatter fmtDataHora = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+%>
+<%!
+    private String js(String s) {
+        if (s == null) return "";
+        return s.replace("\\", "\\\\").replace("'", "\\'").replace("\r", " ").replace("\n", " ");
+    }
+    private String rotuloCategoria(String c) {
+        if (c == null) return "";
+        if ("tecCientifico".equals(c)) return "Tecnologia";
+        if ("sociais".equals(c)) return "Sociais";
+        if ("corporativos".equals(c)) return "Corporativos";
+        return c;
+    }
 %>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -29,6 +94,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 
 <style>
 
@@ -650,6 +718,21 @@
         .app { grid-template-columns: 1fr; }
         .sidebar { display: none; }
     }
+    .modal-overlay {
+        display: none; position: fixed; inset: 0; background: rgba(2,6,23,0.55);
+        align-items: center; justify-content: center; z-index: 100; padding: 20px;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-box {
+        background: #FFFFFF; border-radius: 14px; width: 100%; max-width: 460px;
+        max-height: 90vh; overflow-y: auto; padding: 22px;
+    }
+    .modal-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; }
+    .modal-header h3 { font-size: 15px; }
+    .modal-close { border: none; background: none; font-size: 18px; color: #94A3B8; cursor: pointer; }
+    .modal-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+    .modal-field label { display: block; font-size: 10px; color: #94A3B8; text-transform: uppercase; margin-bottom: 4px; }
+    .modal-field .val { font-size: 13px; font-weight: 600; }
 
 </style>
 </head>
@@ -720,11 +803,40 @@
             </div>
 
             <div class="topbar-actions">
-                <div class="bell">🔔<span class="dot"></span></div>
-                <div class="topbar-user">
+                <div class="bell-wrap" style="position:relative;">
+                    <button class="bell <%= notifNaoLidas > 0 ? "unread" : "" %>" id="bellBtn" onclick="toggleNotificacoes(event)"
+                            style="border:none; background:none; cursor:pointer; position:relative; font-size:16px;">
+                        🔔<span class="dot" style="<%= notifNaoLidas > 0 ? "" : "display:none;" %>"></span>
+                    </button>
+
+                    <div class="notif-dropdown" id="notifDropdown" style="display:none; position:absolute; top:36px; right:0; width:300px; background:#FFFFFF; border:1px solid #E2E8F0; border-radius:12px; box-shadow:0 20px 45px rgba(2,6,23,0.18); z-index:30; max-height:360px; overflow-y:auto;">
+                        <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 14px; border-bottom:1px solid #F1F5F9; font-size:13px; font-weight:700;">
+                            Notificações
+                            <a href="${pageContext.request.contextPath}/notificacaoController?action=marcarLidas&voltarPara=/pages/home.jsp" style="font-size:11px; font-weight:600; color:#2563EB;">Marcar todas como lidas</a>
+                        </div>
+                        <%
+                            if (minhasNotificacoes.isEmpty()) {
+                        %>
+                        <div style="padding:24px 14px; text-align:center; color:#94A3B8; font-size:12px;">Nenhuma notificação por enquanto.</div>
+                        <%
+                            } else {
+                                for (notificacaoModel n : minhasNotificacoes) {
+                        %>
+                        <div style="padding:11px 14px; border-bottom:1px solid #F8FAFC; font-size:12px; color:#334155;">
+                            <div><%= n.getMensagem() %></div>
+                            <div style="font-size:10px; color:#94A3B8; margin-top:3px;"><%= n.getData_envio().format(fmtDataHora) %></div>
+                        </div>
+                        <%
+                                }
+                            }
+                        %>
+                    </div>
+                </div>
+
+                <button class="topbar-user" onclick="mudarViewById('perfil')" style="border:none; background:none; cursor:pointer; display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; color:#0F172A; padding:4px 6px; border-radius:8px;">
                     <div class="avatar" style="width:30px;height:30px;font-size:11px;"><%= iniciais %></div>
                     <%= nomeUsuario %>
-                </div>
+                </button>
             </div>
 
         </header>
@@ -739,16 +851,14 @@
                 <div class="hero-banner">
                     <div class="hero-badge">⭐ Destaques da semana</div>
                     <h2>Descubra novos eventos</h2>
-                    <p>Mais de 1.400 eventos disponíveis para você</p>
+                    <p><%= eventosAtivos.size() %> evento(s) disponível(is) para você</p>
                 </div>
 
                 <div class="category-pills">
                     <button class="pill active">Todos</button>
                     <button class="pill">Tecnologia</button>
-                    <button class="pill">Design</button>
-                    <button class="pill">Marketing</button>
-                    <button class="pill">Negócios</button>
-                    <button class="pill">Entretenimento</button>
+                    <button class="pill">Sociais</button>
+                    <button class="pill">Corporativos</button>
                 </div>
 
                 <div class="two-col">
@@ -761,60 +871,86 @@
 
                         <div class="side-card">
                             <h4>📅 Meus Próximos Eventos</h4>
-
+                            <%
+                                int mostradosProximos = 0;
+                                for (inscricaoModel insc : minhasInscricoes) {
+                                    if (!"Confirmada".equals(insc.getStatus_inscricao())) continue;
+                                    eventoModel evProx = eventoDAOJsp.buscarPorId(insc.getId_evento());
+                                    if (evProx == null) continue;
+                                    if (mostradosProximos >= 3) break;
+                                    mostradosProximos++;
+                            %>
                             <div class="side-item">
-                                <div class="date-box"><span>12</span><span>Set</span></div>
+                                <div class="date-box">
+                                    <span><%= evProx.getInicio_evento().format(DateTimeFormatter.ofPattern("dd")) %></span>
+                                    <span><%= evProx.getInicio_evento().format(DateTimeFormatter.ofPattern("MMM")) %></span>
+                                </div>
                                 <div class="info">
-                                    <strong>Expo Empreendedorismo</strong>
-                                    <span>10:00 · Expoville, Curitiba, PR</span>
+                                    <strong><%= evProx.getNome_evento() %></strong>
+                                    <span><%= evProx.getInicio_evento().format(fmtHora) %> · <%= evProx.getLocal_evento() %></span>
                                     <div class="status-chip">Confirmada</div>
                                 </div>
                             </div>
-
-                            <div class="side-item">
-                                <div class="date-box"><span>23</span><span>Jul</span></div>
-                                <div class="info">
-                                    <strong>Workshop Ágil na Prática</strong>
-                                    <span>09:00 · Hub Inovação, São Paulo, SP</span>
-                                    <div class="status-chip">Confirmada</div>
-                                </div>
-                            </div>
+                            <%
+                                }
+                                if (mostradosProximos == 0) {
+                            %>
+                            <div style="font-size:12px; color:#94A3B8;">Você ainda não tem inscrições confirmadas.</div>
+                            <%
+                                }
+                            %>
                         </div>
 
                         <div class="side-card">
                             <h4>♡ Favoritos</h4>
-
+                            <%
+                                int mostradosFav = 0;
+                                for (favoritoModel fav : meusFavoritos) {
+                                    eventoModel evFav = eventoDAOJsp.buscarPorId(fav.getId_evento());
+                                    if (evFav == null) continue;
+                                    if (mostradosFav >= 3) break;
+                                    mostradosFav++;
+                            %>
                             <div class="side-item">
                                 <div class="info">
-                                    <strong>Summit de Tecnologia 2025</strong>
-                                    <span>15 Ago 2025</span>
+                                    <strong><%= evFav.getNome_evento() %></strong>
+                                    <span><%= evFav.getInicio_evento().format(fmtData) %></span>
                                 </div>
                             </div>
-
-                            <div class="side-item">
-                                <div class="info">
-                                    <strong>Hackathon de Inovação</strong>
-                                    <span>05 Set 2025</span>
-                                </div>
-                            </div>
-
-                            <div class="side-item">
-                                <div class="info">
-                                    <strong>DevConf Brasil 2025</strong>
-                                    <span>10 Out 2025</span>
-                                </div>
-                            </div>
+                            <%
+                                }
+                                if (mostradosFav == 0) {
+                            %>
+                            <div style="font-size:12px; color:#94A3B8;">Nenhum favorito ainda.</div>
+                            <%
+                                }
+                            %>
                         </div>
 
                         <div class="side-card">
                             <h4>🕐 Histórico recente</h4>
-
+                            <%
+                                int mostradosHist = 0;
+                                for (int i = minhasInscricoes.size() - 1; i >= 0 && mostradosHist < 3; i--) {
+                                    inscricaoModel insc = minhasInscricoes.get(i);
+                                    eventoModel evHist = eventoDAOJsp.buscarPorId(insc.getId_evento());
+                                    if (evHist == null) continue;
+                                    mostradosHist++;
+                            %>
                             <div class="side-item">
                                 <div class="info">
-                                    <strong>Tech Summit ...</strong>
-                                    <span>Jan 2024</span>
+                                    <strong><%= evHist.getNome_evento() %></strong>
+                                    <span><%= insc.getData_inscricao().format(fmtData) %></span>
                                 </div>
                             </div>
+                            <%
+                                }
+                                if (mostradosHist == 0) {
+                            %>
+                            <div style="font-size:12px; color:#94A3B8;">Nenhuma atividade ainda.</div>
+                            <%
+                                }
+                            %>
                         </div>
 
                     </div>
@@ -833,7 +969,7 @@
                         <h1>Explorar Eventos</h1>
                         <p id="contador-eventos">eventos encontrados</p>
                     </div>
-                    <button class="btn-outline">⬇ Exportar Dados</button>
+                    <button class="btn-outline" onclick="exportarPDF('eventos')">⬇ Exportar Dados</button>
                 </div>
 
                 <div class="events-grid" id="grid-eventos"></div>
@@ -850,7 +986,7 @@
                         <h1>Meus Favoritos</h1>
                         <p id="contador-favoritos">eventos salvos</p>
                     </div>
-                    <button class="btn-outline">⬇ Exportar Dados</button>
+                    <button class="btn-outline" onclick="exportarPDF('favoritos')">⬇ Exportar Dados</button>
                 </div>
 
                 <div class="events-grid" id="grid-favoritos"></div>
@@ -858,8 +994,63 @@
             </section>
 
             <!-- ============================================================
-                 VIEW: MEUS EVENTOS
+                 VIEW: DETALHES DO EVENTO
             ============================================================ -->
+            <section class="view-section" id="view-detalheEvento">
+
+                <div class="back-link" onclick="mudarViewById('eventos')" style="display:flex; align-items:center; gap:8px; font-size:12px; color:#64748B; margin-bottom:10px; cursor:pointer;">← Voltar</div>
+
+                <div class="view-header">
+                    <div><h1 id="det_ev_nome">—</h1></div>
+                    <button class="btn-outline" onclick="exportarEventoPDF()">⬇ Exportar</button>
+                </div>
+
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;">
+                    <div class="detail-box" style="background:#FFF;border:1px solid #E2E8F0;border-radius:10px;padding:12px 14px;">
+                        <label style="display:block;font-size:10px;color:#94A3B8;text-transform:uppercase;margin-bottom:4px;">Tipo</label>
+                        <div id="det_ev_tipo" style="font-size:13px;font-weight:600;">—</div>
+                    </div>
+                    <div class="detail-box" style="background:#FFF;border:1px solid #E2E8F0;border-radius:10px;padding:12px 14px;">
+                        <label style="display:block;font-size:10px;color:#94A3B8;text-transform:uppercase;margin-bottom:4px;">Categoria</label>
+                        <div id="det_ev_categoria" style="font-size:13px;font-weight:600;">—</div>
+                    </div>
+                    <div class="detail-box" style="background:#FFF;border:1px solid #E2E8F0;border-radius:10px;padding:12px 14px;">
+                        <label style="display:block;font-size:10px;color:#94A3B8;text-transform:uppercase;margin-bottom:4px;">Início</label>
+                        <div id="det_ev_inicio" style="font-size:13px;font-weight:600;">—</div>
+                    </div>
+                    <div class="detail-box" style="background:#FFF;border:1px solid #E2E8F0;border-radius:10px;padding:12px 14px;">
+                        <label style="display:block;font-size:10px;color:#94A3B8;text-transform:uppercase;margin-bottom:4px;">Término</label>
+                        <div id="det_ev_fim" style="font-size:13px;font-weight:600;">—</div>
+                    </div>
+                    <div class="detail-box" style="background:#FFF;border:1px solid #E2E8F0;border-radius:10px;padding:12px 14px;">
+                        <label style="display:block;font-size:10px;color:#94A3B8;text-transform:uppercase;margin-bottom:4px;">Local</label>
+                        <div id="det_ev_local" style="font-size:13px;font-weight:600;">—</div>
+                    </div>
+                    <div class="detail-box" style="background:#FFF;border:1px solid #E2E8F0;border-radius:10px;padding:12px 14px;">
+                        <label style="display:block;font-size:10px;color:#94A3B8;text-transform:uppercase;margin-bottom:4px;">Código</label>
+                        <div id="det_ev_codigo" style="font-size:13px;font-weight:600;">—</div>
+                    </div>
+                    <div class="detail-box" style="background:#FFF;border:1px solid #E2E8F0;border-radius:10px;padding:12px 14px;">
+                        <label style="display:block;font-size:10px;color:#94A3B8;text-transform:uppercase;margin-bottom:4px;">Capacidade</label>
+                        <div id="det_ev_capacidade" style="font-size:13px;font-weight:600;">—</div>
+                    </div>
+                    <div class="detail-box" style="background:#FFF;border:1px solid #E2E8F0;border-radius:10px;padding:12px 14px;">
+                        <label style="display:block;font-size:10px;color:#94A3B8;text-transform:uppercase;margin-bottom:4px;">Inscritos</label>
+                        <div id="det_ev_inscritos" style="font-size:13px;font-weight:600;">—</div>
+                    </div>
+                </div>
+
+                <div style="background:#FFF;border:1px solid #E2E8F0;border-radius:10px;padding:14px 16px;margin-bottom:16px;">
+                    <label style="display:block;font-size:10px;color:#94A3B8;text-transform:uppercase;margin-bottom:6px;">Descrição</label>
+                    <div id="det_ev_descricao" style="font-size:13px;">—</div>
+                </div>
+
+                <div style="display:flex; gap:10px;">
+                    <button class="btn-outline" id="det_ev_fav_btn" onclick="alternarFavoritoDetalhe()">♡ Favoritar</button>
+                    <button class="btn-solid" id="det_ev_inscrever_btn" onclick="inscreverDetalhe()">Inscrever-se</button>
+                </div>
+
+            </section>
             <section class="view-section" id="view-meus-eventos">
 
                 <div class="view-header">
@@ -867,36 +1058,49 @@
                         <h1>Meus Eventos</h1>
                         <p>Eventos em que você está inscrito ou na fila</p>
                     </div>
-                    <button class="btn-outline">⬇ Exportar Dados</button>
+                    <button class="btn-outline" onclick="exportarPDF('meus-eventos')">⬇ Exportar Dados</button>
                 </div>
 
-                <div class="list-card">
-                    <div class="thumb-sm" style="background-image:url('https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=200&q=60')"></div>
-                    <div class="info">
-                        <strong>Expo Empreendedorismo</strong>
-                        <span class="badge-status confirmada">Confirmada</span>
-                        <div class="meta">📅 12 Set 2025 · 10:00 · 📍 Expoville, Curitiba, PR</div>
-                        <div class="meta">Inscrito em 10/07/2025 · Pela plataforma</div>
-                    </div>
-                    <div class="actions">
-                        <button class="btn-outline">📄 Comprovante</button>
-                        <button class="btn-danger-outline">Cancelar</button>
-                    </div>
-                </div>
+                <%
+                    int mostradosMeusEv = 0;
+                    for (inscricaoModel insc : minhasInscricoes) {
 
+                        if (!"Confirmada".equals(insc.getStatus_inscricao())
+                                && !"Espera".equals(insc.getStatus_inscricao())) continue;
+
+                        eventoModel evM = eventoDAOJsp.buscarPorId(insc.getId_evento());
+                        if (evM == null) continue;
+
+                        mostradosMeusEv++;
+
+                        String badgeClasse = "Espera".equals(insc.getStatus_inscricao()) ? "" : "confirmada";
+                        String badgeLabel = "Espera".equals(insc.getStatus_inscricao()) ? "Na lista de espera" : "Confirmada";
+                %>
                 <div class="list-card">
-                    <div class="thumb-sm" style="background-image:url('https://images.unsplash.com/photo-1517048676732-d65bc937f952?w=200&q=60')"></div>
+                    <div class="thumb-sm" style="background:#EFF6FF; display:flex; align-items:center; justify-content:center; font-size:20px;">📅</div>
                     <div class="info">
-                        <strong>Workshop Ágil na Prática</strong>
-                        <span class="badge-status confirmada">Confirmada</span>
-                        <div class="meta">📅 23 Jul 2026 · 09:00 · 📍 Hub Inovação, São Paulo, SP</div>
-                        <div class="meta">Inscrito em 20/07/2026 · Pela plataforma</div>
+                        <strong><%= evM.getNome_evento() %></strong>
+                        <span class="badge-status <%= badgeClasse %>"><%= badgeLabel %></span>
+                        <div class="meta">📅 <%= evM.getInicio_evento().format(fmtData) %> · <%= evM.getInicio_evento().format(fmtHora) %> · 📍 <%= evM.getLocal_evento() %></div>
+                        <div class="meta">Inscrito em <%= insc.getData_inscricao().format(fmtData) %></div>
                     </div>
                     <div class="actions">
-                        <button class="btn-outline">📄 Comprovante</button>
-                        <button class="btn-danger-outline">Cancelar</button>
+                        <% if ("Confirmada".equals(insc.getStatus_inscricao())) { %>
+                        <button class="btn-outline" onclick="gerarComprovante(<%= insc.getId_inscricao() %>)">📄 Comprovante</button>
+                        <% } %>
+                        <a class="btn-outline"
+                           href="${pageContext.request.contextPath}/inscricaoController?action=cancelar&id=<%= insc.getId_inscricao() %>"
+                           onclick="return confirm('Cancelar sua inscrição em \'<%= js(evM.getNome_evento()) %>\'?');">Cancelar</a>
                     </div>
                 </div>
+                <%
+                    }
+                    if (mostradosMeusEv == 0) {
+                %>
+                <div class="empty-state" style="text-align:center; padding:40px; color:#94A3B8;">Você ainda não está inscrito em nenhum evento.</div>
+                <%
+                    }
+                %>
 
             </section>
 
@@ -908,55 +1112,57 @@
                 <div class="view-header">
                     <div>
                         <h1>Histórico de Participação</h1>
-                        <p>6 eventos registrados</p>
+                        <p><%= minhasInscricoes.size() %> registro(s)</p>
                     </div>
-                    <button class="btn-outline">⬇ Exportar Dados</button>
+                    <button class="btn-outline" onclick="exportarPDF('historico')">⬇ Exportar Dados</button>
                 </div>
 
-                <div class="list-card">
-                    <div class="thumb-sm" style="background-image:url('https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=200&q=60')"></div>
-                    <div class="info">
-                        <strong>Tech Summit 2024</strong>
-                        <div class="meta">Tecnologia · Jan 2024 · Expo Center Norte, São Paulo, SP</div>
-                    </div>
-                    <span class="badge-status checkin">✓ Check-in realizado</span>
-                </div>
+                <%
+                    List<inscricaoModel> historicoOrdenado = new ArrayList<inscricaoModel>(minhasInscricoes);
+                    java.util.Collections.sort(historicoOrdenado, new java.util.Comparator<inscricaoModel>() {
+                        public int compare(inscricaoModel a, inscricaoModel b) {
+                            return b.getData_inscricao().compareTo(a.getData_inscricao());
+                        }
+                    });
 
-                <div class="list-card">
-                    <div class="thumb-sm" style="background-image:url('https://images.unsplash.com/photo-1552664730-d307ca884978?w=200&q=60')"></div>
-                    <div class="info">
-                        <strong>Workshop React Avançado</strong>
-                        <div class="meta">Tecnologia · Mar 2024 · Online</div>
-                    </div>
-                    <span class="badge-status participou">✓ Participou</span>
-                </div>
+                    for (inscricaoModel insc : historicoOrdenado) {
 
-                <div class="list-card">
-                    <div class="thumb-sm" style="background-image:url('https://images.unsplash.com/photo-1531482615713-2afd69097998?w=200&q=60')"></div>
-                    <div class="info">
-                        <strong>DevConf 2024</strong>
-                        <div class="meta">Tecnologia · Jun 2024 · Porto Alegre, RS</div>
-                    </div>
-                    <span class="badge-status cancelada">✕ Cancelado</span>
-                </div>
+                        eventoModel evH = eventoDAOJsp.buscarPorId(insc.getId_evento());
+                        if (evH == null) continue;
 
-                <div class="list-card">
-                    <div class="thumb-sm" style="background-image:url('https://images.unsplash.com/photo-1591115765373-5207764f72e7?w=200&q=60')"></div>
-                    <div class="info">
-                        <strong>UX Week SP</strong>
-                        <div class="meta">Design · Ago 2024 · São Paulo, SP</div>
-                    </div>
-                    <span class="badge-status checkin">✓ Check-in realizado</span>
-                </div>
+                        String badgeClasse;
+                        String badgeLabel;
 
-                <div class="list-card">
-                    <div class="thumb-sm" style="background-image:url('https://images.unsplash.com/photo-1475721027785-f74eccf877e2?w=200&q=60')"></div>
+                        if (insc.getCheckin() != null) {
+                            badgeClasse = "checkin";
+                            badgeLabel = "✓ Check-in realizado";
+                        } else if ("Cancelada".equals(insc.getStatus_inscricao())) {
+                            badgeClasse = "cancelada";
+                            badgeLabel = "✕ Cancelado";
+                        } else if ("Espera".equals(insc.getStatus_inscricao())) {
+                            badgeClasse = "";
+                            badgeLabel = "Na lista de espera";
+                        } else {
+                            badgeClasse = "confirmada";
+                            badgeLabel = "Confirmado";
+                        }
+                %>
+                <div class="list-card" style="cursor:pointer;" onclick="abrirDetalheInscricao(<%= insc.getId_inscricao() %>)">
+                    <div class="thumb-sm" style="background:#EFF6FF; display:flex; align-items:center; justify-content:center; font-size:20px;">📅</div>
                     <div class="info">
-                        <strong>Marketing Summit</strong>
-                        <div class="meta">Marketing · Out 2024 · Rio de Janeiro, RJ</div>
+                        <strong><%= evH.getNome_evento() %></strong>
+                        <div class="meta"><%= rotuloCategoria(evH.getCategoria_evento()) %> · <%= evH.getInicio_evento().format(fmtData) %> · <%= evH.getLocal_evento() %></div>
                     </div>
-                    <span class="badge-status participou">✓ Participou</span>
+                    <span class="badge-status <%= badgeClasse %>"><%= badgeLabel %></span>
                 </div>
+                <%
+                    }
+                    if (historicoOrdenado.isEmpty()) {
+                %>
+                <div class="empty-state" style="text-align:center; padding:40px; color:#94A3B8;">Nenhum histórico ainda.</div>
+                <%
+                    }
+                %>
 
             </section>
 
@@ -1036,84 +1242,79 @@
         botao.classList.add('active');
     }
 
+    function mudarViewById(viewId) {
+        const nav = document.querySelector('.sidebar .nav-item[data-view="' + viewId + '"]');
+        mudarView(viewId, nav);
+    }
+
+    (function abrirViewInicial() {
+        const params = new URLSearchParams(window.location.search);
+        const view = params.get('view');
+        if (view) mudarViewById(view);
+    })();
+
+    function toggleNotificacoes(ev) {
+        ev.stopPropagation();
+        const dd = document.getElementById('notifDropdown');
+        dd.style.display = dd.style.display === 'block' ? 'none' : 'block';
+    }
+
+    document.addEventListener('click', function (ev) {
+        const dd = document.getElementById('notifDropdown');
+        if (dd && dd.style.display === 'block' && !dd.contains(ev.target) && ev.target.id !== 'bellBtn') {
+            dd.style.display = 'none';
+        }
+    });
+
     // =========================================================
-    // MOCK DE EVENTOS
-    // (substituir por dados vindos do eventoController quando integrar)
+    // EVENTOS (dados reais, vindos do eventoDAO)
     // =========================================================
 
-    const mockEventos = [
+    const eventosReais = [
+        <%
+            for (eventoModel ev : eventosAtivos) {
+
+                int inscritosEv = inscricaoDAOJsp.contarConfirmados(ev.getId_evento());
+                boolean lotadoEv = inscritosEv >= ev.getCapacidade_evento();
+                int pctEv = ev.getCapacidade_evento() > 0
+                    ? (int) Math.round((inscritosEv * 100.0) / ev.getCapacidade_evento())
+                    : 0;
+
+                boolean favoritoEv = false;
+                for (favoritoModel fav : meusFavoritos) {
+                    if (fav.getId_evento() == ev.getId_evento()) { favoritoEv = true; break; }
+                }
+
+                String meuStatusEv = "";
+                for (inscricaoModel insc : minhasInscricoes) {
+                    if (insc.getId_evento() == ev.getId_evento()
+                            && !"Cancelada".equals(insc.getStatus_inscricao())) {
+                        meuStatusEv = insc.getStatus_inscricao();
+                        break;
+                    }
+                }
+        %>
         {
-            id: 1,
-            nome: "Summit de Tecnologia 2025",
-            categoria: "Tecnologia",
-            preco: "R$ 299",
-            imagem: "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400&q=60",
-            local: "Expo Center Norte, São Paulo, SP",
-            data: "15 Ago 2025 · 09:00",
-            ocupacao: 60,
-            lotado: false,
-            favorito: true
+            id: <%= ev.getId_evento() %>,
+            nome: '<%= js(ev.getNome_evento()) %>',
+            tipo: '<%= ev.getTipo_evento() %>',
+            categoria: '<%= rotuloCategoria(ev.getCategoria_evento()) %>',
+            local: '<%= js(ev.getLocal_evento()) %>',
+            data: '<%= ev.getInicio_evento().format(fmtData) %> · <%= ev.getInicio_evento().format(fmtHora) %>',
+            dataFim: '<%= ev.getFim_evento().format(fmtData) %> · <%= ev.getFim_evento().format(fmtHora) %>',
+            dataIso: '<%= ev.getInicio_evento().toString() %>',
+            codigo: '<%= js(ev.getCodigo_evento()) %>',
+            capacidade: <%= ev.getCapacidade_evento() %>,
+            inscritos: <%= inscritosEv %>,
+            ocupacao: <%= pctEv %>,
+            lotado: <%= lotadoEv %>,
+            favorito: <%= favoritoEv %>,
+            meuStatus: '<%= meuStatusEv %>',
+            descricao: '<%= js(ev.getDescricao_evento()) %>'
         },
-        {
-            id: 2,
-            nome: "Workshop de UX Design",
-            categoria: "Design",
-            preco: "R$ 149",
-            imagem: "https://images.unsplash.com/photo-1552664730-d307ca884978?w=400&q=60",
-            local: "Online (Zoom)",
-            data: "22 Ago 2025 · 14:00",
-            ocupacao: 100,
-            lotado: true,
-            favorito: false
-        },
-        {
-            id: 3,
-            nome: "Conferência de Marketing Digital",
-            categoria: "Marketing",
-            preco: "Gratuito",
-            imagem: "https://images.unsplash.com/photo-1475721027785-f74eccf877e2?w=400&q=60",
-            local: "Centro de Convenções, Rio de Janeiro, RJ",
-            data: "30 Ago 2025 · 08:30",
-            ocupacao: 20,
-            lotado: false,
-            favorito: false
-        },
-        {
-            id: 4,
-            nome: "Hackathon de Inovação",
-            categoria: "Tecnologia",
-            preco: "R$ 89",
-            imagem: "https://images.unsplash.com/photo-1517048676732-d65bc937f952?w=400&q=60",
-            local: "HUB BH, Belo Horizonte, MG",
-            data: "05 Set 2025 · 18:00",
-            ocupacao: 40,
-            lotado: false,
-            favorito: true
-        },
-        {
-            id: 5,
-            nome: "DevConf Brasil 2025",
-            categoria: "Tecnologia",
-            preco: "R$ 180",
-            imagem: "https://images.unsplash.com/photo-1531482615713-2afd69097998?w=400&q=60",
-            local: "PUCRS, Porto Alegre, RS",
-            data: "10 Out 2025 · 08:00",
-            ocupacao: 35,
-            lotado: false,
-            favorito: true
-        },
-        {
-            id: 6,
-            nome: "UX Week SP",
-            categoria: "Design",
-            preco: "R$ 120",
-            imagem: "https://images.unsplash.com/photo-1591115765373-5207764f72e7?w=400&q=60",
-            local: "São Paulo, SP",
-            data: "18 Nov 2025 · 09:00",
-            ocupacao: 55,
-            lotado: false,
-            favorito: false
-        }
+        <%
+            }
+        %>
     ];
 
     function criarCardEvento(ev) {
@@ -1121,27 +1322,34 @@
         const barraClasse = ev.lotado ? 'capacity-bar full' : 'capacity-bar';
         const favClasse = ev.favorito ? 'fav-btn active' : 'fav-btn';
         const coracao = ev.favorito ? '♥' : '♡';
-        const botaoAcao = ev.lotado
-            ? '<button class="btn-outline">Entrar na fila</button>'
-            : '<button class="btn-solid">Inscrever-se</button>';
+
+        let botaoAcao;
+        if (ev.meuStatus === 'Confirmada') {
+            botaoAcao = '<button class="btn-outline" disabled>Já inscrito</button>';
+        } else if (ev.meuStatus === 'Espera') {
+            botaoAcao = '<button class="btn-outline" disabled>Na lista de espera</button>';
+        } else if (ev.lotado) {
+            botaoAcao = `<button class="btn-outline" onclick="inscrever(\${ev.id}, true)">Entrar na fila</button>`;
+        } else {
+            botaoAcao = `<button class="btn-solid" onclick="inscrever(\${ev.id}, false)">Inscrever-se</button>`;
+        }
 
         return `
             <div class="event-card" data-categoria="\${ev.categoria}" data-id="\${ev.id}">
-                <div class="thumb" style="background-image:url('\${ev.imagem}')">
+                <div class="thumb" style="background:linear-gradient(135deg,#EFF6FF,#F5F3FF); display:flex; align-items:center; justify-content:center; font-size:32px;">📅
                     \${ev.lotado ? '<span class="tag-lotado">Lotado</span>' : ''}
-                    <button class="\${favClasse}" onclick="alternarFavorito(\${ev.id}, this)">\${coracao}</button>
+                    <button class="\${favClasse}" onclick="alternarFavorito(\${ev.id})">\${coracao}</button>
                 </div>
                 <div class="body">
                     <div class="row-top">
                         <span class="cat-tag">\${ev.categoria}</span>
-                        <span class="price-tag">\${ev.preco}</span>
                     </div>
                     <h3>\${ev.nome}</h3>
                     <div class="event-meta">📍 \${ev.local}</div>
                     <div class="event-meta">📅 \${ev.data}</div>
                     <div class="\${barraClasse}"><span style="width:\${ev.ocupacao}%"></span></div>
                     <div class="actions">
-                        <button class="btn-outline">Ver Detalhes</button>
+                        <button class="btn-outline" onclick="verDetalhes(\${ev.id})">Ver Detalhes</button>
                         \${botaoAcao}
                     </div>
                 </div>
@@ -1149,33 +1357,153 @@
         `;
     }
 
-    function alternarFavorito(id, botao) {
-        // Alternância apenas visual por enquanto.
-        // Ao integrar, chamar favoritoController (action=adicionar/remover) aqui.
-        const ev = mockEventos.find(e => e.id === id);
-        ev.favorito = !ev.favorito;
-        botao.classList.toggle('active');
-        botao.textContent = ev.favorito ? '♥' : '♡';
+    let currentDetalheEventoId = null;
+
+    function verDetalhes(id) {
+        const ev = eventosReais.find(e => e.id === id);
+        if (!ev) return;
+
+        currentDetalheEventoId = id;
+
+        document.getElementById('det_ev_nome').textContent = ev.nome;
+        document.getElementById('det_ev_tipo').textContent = ev.tipo === 'publico' ? 'Público' : 'Privado';
+        document.getElementById('det_ev_categoria').textContent = ev.categoria;
+        document.getElementById('det_ev_inicio').textContent = ev.data;
+        document.getElementById('det_ev_fim').textContent = ev.dataFim;
+        document.getElementById('det_ev_local').textContent = ev.local;
+        document.getElementById('det_ev_codigo').textContent = ev.codigo;
+        document.getElementById('det_ev_capacidade').textContent = ev.capacidade + ' pessoas';
+        document.getElementById('det_ev_inscritos').textContent = ev.inscritos + ' (' + ev.ocupacao + '%)';
+        document.getElementById('det_ev_descricao').textContent = ev.descricao || 'Sem descrição.';
+
+        const favBtn = document.getElementById('det_ev_fav_btn');
+        favBtn.textContent = ev.favorito ? '♥ Favoritado' : '♡ Favoritar';
+        favBtn.classList.toggle('active', ev.favorito);
+
+        const inscBtn = document.getElementById('det_ev_inscrever_btn');
+        if (ev.meuStatus === 'Confirmada') {
+            inscBtn.textContent = 'Já inscrito';
+            inscBtn.disabled = true;
+        } else if (ev.meuStatus === 'Espera') {
+            inscBtn.textContent = 'Na lista de espera';
+            inscBtn.disabled = true;
+        } else if (ev.lotado) {
+            inscBtn.textContent = 'Entrar na fila (evento lotado)';
+            inscBtn.disabled = false;
+        } else {
+            inscBtn.textContent = 'Inscrever-se';
+            inscBtn.disabled = false;
+        }
+
+        mudarViewById('detalheEvento');
+    }
+
+    function alternarFavoritoDetalhe() {
+        if (currentDetalheEventoId != null) alternarFavorito(currentDetalheEventoId);
+    }
+
+    function inscreverDetalhe() {
+        const ev = eventosReais.find(e => e.id === currentDetalheEventoId);
+        if (!ev) return;
+        inscrever(ev.id, ev.lotado && ev.meuStatus === '');
+    }
+
+    function exportarEventoPDF() {
+        const ev = eventosReais.find(e => e.id === currentDetalheEventoId);
+        if (!ev) return;
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        doc.setFontSize(14);
+        doc.text(ev.nome, 14, 18);
+        doc.autoTable({
+            startY: 26,
+            body: [
+                ['Tipo', ev.tipo === 'publico' ? 'Público' : 'Privado'],
+                ['Categoria', ev.categoria],
+                ['Início', ev.data], ['Término', ev.dataFim],
+                ['Local', ev.local], ['Código', ev.codigo],
+                ['Capacidade', ev.capacidade], ['Inscritos', ev.inscritos + ' (' + ev.ocupacao + '%)'],
+                ['Descrição', ev.descricao || '-']
+            ]
+        });
+        doc.save('evento-' + ev.codigo + '.pdf');
+    }
+
+    function alternarFavorito(id) {
+        const ev = eventosReais.find(e => e.id === id);
+        if (!ev) return;
+
+        const form = document.createElement('form');
+        form.method = 'post';
+        form.action = '${pageContext.request.contextPath}/favoritoController';
+
+        const campos = {
+            action: ev.favorito ? 'excluir' : 'novo',
+            id_usuario: '<%= usuarioLogado.getId_usuario() %>',
+            id_evento: id,
+            data_favorito: new Date().toISOString()
+        };
+
+        for (const chave in campos) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = chave;
+            input.value = campos[chave];
+            form.appendChild(input);
+        }
+
+        document.body.appendChild(form);
+        form.submit();
+    }
+
+    function inscrever(id, entrarNaFila) {
+        if (!confirm(entrarNaFila ? 'Este evento está lotado. Deseja entrar na lista de espera?' : 'Confirmar inscrição neste evento?')) {
+            return;
+        }
+
+        const form = document.createElement('form');
+        form.method = 'post';
+        form.action = '${pageContext.request.contextPath}/inscricaoController';
+
+        const campos = {
+            action: 'novo',
+            id_evento: id,
+            id_usuario: '<%= usuarioLogado.getId_usuario() %>',
+            data_inscricao: new Date().toISOString().split('.')[0],
+            status_inscricao: entrarNaFila ? 'Espera' : 'Confirmada',
+            metodo_inscricao: 'ingresso'
+        };
+
+        for (const chave in campos) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = chave;
+            input.value = campos[chave];
+            form.appendChild(input);
+        }
+
+        document.body.appendChild(form);
+        form.submit();
     }
 
     function renderizarGrid(containerId, lista) {
         document.getElementById(containerId).innerHTML =
-            lista.map(criarCardEvento).join('');
+            lista.map(criarCardEvento).join('') || '<div class="empty-state" style="grid-column:1/-1;text-align:center;color:#94A3B8;padding:30px;">Nenhum evento encontrado.</div>';
     }
 
     // Início: mostra os 3 primeiros
-    renderizarGrid('grid-inicio', mockEventos.slice(0, 3));
+    renderizarGrid('grid-inicio', eventosReais.slice(0, 3));
 
     // Eventos: mostra todos
-    renderizarGrid('grid-eventos', mockEventos);
+    renderizarGrid('grid-eventos', eventosReais);
     document.getElementById('contador-eventos').textContent =
-        mockEventos.length + ' eventos encontrados';
+        eventosReais.length + ' evento(s) encontrado(s)';
 
     // Favoritos: só os favoritados
-    const favoritados = mockEventos.filter(e => e.favorito);
+    const favoritados = eventosReais.filter(e => e.favorito);
     renderizarGrid('grid-favoritos', favoritados);
     document.getElementById('contador-favoritos').textContent =
-        favoritados.length + ' eventos salvos';
+        favoritados.length + ' evento(s) salvo(s)';
 
     // Filtro por categoria (pills) na view Início
     document.querySelectorAll('.category-pills .pill').forEach(function (pill) {
@@ -1185,14 +1513,170 @@
 
             const categoria = pill.textContent.trim();
             const filtrada = categoria === 'Todos'
-                ? mockEventos
-                : mockEventos.filter(e => e.categoria === categoria);
+                ? eventosReais
+                : eventosReais.filter(e => e.categoria === categoria);
 
             renderizarGrid('grid-inicio', filtrada.slice(0, 6));
         });
     });
 
+    // =========================================================
+    // EXPORTAR PDF (dados reais da tela atual)
+    // =========================================================
+
+    // =========================================================
+    // HISTÓRICO / INSCRIÇÕES (dados reais, pra modal de detalhes e comprovante)
+    // =========================================================
+
+    const historicoData = [
+        <%
+            for (inscricaoModel insc : minhasInscricoes) {
+                eventoModel evI = eventoDAOJsp.buscarPorId(insc.getId_evento());
+                if (evI == null) continue;
+
+                String statusLabelJs;
+                if ("Cancelada".equals(insc.getStatus_inscricao())) statusLabelJs = "Cancelada";
+                else if ("Espera".equals(insc.getStatus_inscricao())) statusLabelJs = "Na lista de espera";
+                else statusLabelJs = "Confirmada";
+
+                String checkinJs = insc.getCheckin() != null
+                    ? insc.getCheckin().format(fmtDataHora)
+                    : "Check-in não realizado";
+        %>
+        {
+            idInscricao: <%= insc.getId_inscricao() %>,
+            nome: '<%= js(evI.getNome_evento()) %>',
+            categoria: '<%= rotuloCategoria(evI.getCategoria_evento()) %>',
+            local: '<%= js(evI.getLocal_evento()) %>',
+            codigo: '<%= js(evI.getCodigo_evento()) %>',
+            dataEvento: '<%= evI.getInicio_evento().format(fmtDataHora) %>',
+            dataInscricao: '<%= insc.getData_inscricao().format(fmtDataHora) %>',
+            metodo: '<%= insc.getMetodo_inscricao() %>',
+            status: '<%= statusLabelJs %>',
+            checkin: '<%= checkinJs %>'
+        },
+        <%
+            }
+        %>
+    ];
+
+    function abrirDetalheInscricao(idInscricao) {
+        const d = historicoData.find(h => h.idInscricao === idInscricao);
+        if (!d) return;
+
+        document.getElementById('mi_nome').textContent = d.nome;
+        document.getElementById('mi_categoria').textContent = d.categoria;
+        document.getElementById('mi_local').textContent = d.local;
+        document.getElementById('mi_dataEvento').textContent = d.dataEvento;
+        document.getElementById('mi_dataInscricao').textContent = d.dataInscricao;
+        document.getElementById('mi_metodo').textContent = d.metodo === 'ingresso' ? 'Ingresso' : 'Código';
+        document.getElementById('mi_status').textContent = d.status;
+        document.getElementById('mi_checkin').textContent = d.checkin;
+
+        document.getElementById('modalInscricao').classList.add('open');
+    }
+
+    function gerarComprovante(idInscricao) {
+        const d = historicoData.find(h => h.idInscricao === idInscricao);
+        if (!d) return;
+
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        doc.setFontSize(16);
+        doc.text('Comprovante de Inscrição', 14, 20);
+        doc.setFontSize(10);
+        doc.text('GerenCIA - Sistema de Gestão de Eventos', 14, 27);
+
+        doc.autoTable({
+            startY: 36,
+            head: [['Campo', 'Valor']],
+            body: [
+                ['Participante', '<%= js(nomeUsuario) %>'],
+                ['CPF', '<%= js(usuarioLogado.getCPF_usuario()) %>'],
+                ['Evento', d.nome],
+                ['Código do evento', d.codigo],
+                ['Categoria', d.categoria],
+                ['Local', d.local],
+                ['Data do evento', d.dataEvento],
+                ['Inscrito em', d.dataInscricao],
+                ['Status', d.status]
+            ]
+        });
+
+        doc.save('comprovante-' + d.codigo + '.pdf');
+    }
+
+    function exportarPDF(view) {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        doc.setFontSize(14);
+
+        if (view === 'eventos') {
+            doc.text('Explorar Eventos', 14, 18);
+            doc.autoTable({
+                startY: 26,
+                head: [['Evento', 'Categoria', 'Local', 'Data', 'Ocupação']],
+                body: eventosReais.map(e => [e.nome, e.categoria, e.local, e.data, e.ocupacao + '%'])
+            });
+        }
+
+        if (view === 'favoritos') {
+            doc.text('Meus Favoritos', 14, 18);
+            doc.autoTable({
+                startY: 26,
+                head: [['Evento', 'Categoria', 'Local', 'Data']],
+                body: eventosReais.filter(e => e.favorito).map(e => [e.nome, e.categoria, e.local, e.data])
+            });
+        }
+
+        if (view === 'meus-eventos') {
+            doc.text('Meus Eventos', 14, 18);
+            doc.autoTable({
+                startY: 26,
+                head: [['Evento', 'Status', 'Local', 'Data']],
+                body: eventosReais.filter(e => e.meuStatus).map(e => [e.nome, e.meuStatus, e.local, e.data])
+            });
+        }
+
+        if (view === 'historico') {
+            doc.text('Histórico de Participação', 14, 18);
+            doc.autoTable({
+                startY: 26,
+                head: [['Evento', 'Categoria', 'Local', 'Data']],
+                body: eventosReais.map(e => [e.nome, e.categoria, e.local, e.data])
+            });
+        }
+
+        doc.save('relatorio-' + view + '.pdf');
+    }
+
 </script>
+
+<!-- ================= MODAL: DETALHES DA INSCRIÇÃO ================= -->
+<div class="modal-overlay" id="modalInscricao">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h3 id="mi_nome">—</h3>
+            <button class="modal-close" onclick="document.getElementById('modalInscricao').classList.remove('open')">×</button>
+        </div>
+
+        <div class="modal-row">
+            <div class="modal-field"><label>Categoria</label><div class="val" id="mi_categoria">—</div></div>
+            <div class="modal-field"><label>Local</label><div class="val" id="mi_local">—</div></div>
+        </div>
+        <div class="modal-row">
+            <div class="modal-field"><label>Data do evento</label><div class="val" id="mi_dataEvento">—</div></div>
+            <div class="modal-field"><label>Data da inscrição</label><div class="val" id="mi_dataInscricao">—</div></div>
+        </div>
+        <div class="modal-row">
+            <div class="modal-field"><label>Método</label><div class="val" id="mi_metodo">—</div></div>
+            <div class="modal-field"><label>Status</label><div class="val" id="mi_status">—</div></div>
+        </div>
+        <div class="modal-row">
+            <div class="modal-field" style="grid-column:1/-1;"><label>Check-in</label><div class="val" id="mi_checkin">—</div></div>
+        </div>
+    </div>
+</div>
 
 </body>
 </html>

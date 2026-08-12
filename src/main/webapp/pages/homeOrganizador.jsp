@@ -82,6 +82,12 @@
     int totalEventosAtivos = 0;
     int totalInscritosSoma = 0;
     int totalNaEsperaSoma = 0;
+
+    // ================= MENSAGEM FLASH (ex: erro de CNPJ duplicado) =================
+    String flashMsgOrg = (String) session.getAttribute("flashMsg");
+    if (flashMsgOrg != null) {
+        session.removeAttribute("flashMsg");
+    }
     int somaPercentual = 0;
     int qtdEventosComCapacidade = 0;
 %>
@@ -742,6 +748,12 @@
         </header>
 
         <div class="content">
+
+            <% if (flashMsgOrg != null) { %>
+            <div style="background:#FEF2F2; border:1px solid #FECACA; color:#B91C1C; border-radius:10px; padding:12px 16px; font-size:13px; margin-bottom:16px;">
+                ⚠️ <%= flashMsgOrg %>
+            </div>
+            <% } %>
             <!-- ============================================================
                  VIEW: DASHBOARD
             ============================================================ -->
@@ -1329,6 +1341,45 @@
 </div>
 
 <!-- ================= MODAL: CONTRATO ================= -->
+<!-- ================= MODAL: DETALHES DO CONTRATO (somente leitura) ================= -->
+<div class="modal-overlay" id="modalDetalhesContrato">
+    <div class="modal-box wide">
+        <div class="modal-header">
+            <div>
+                <h3>Detalhes do Contrato</h3>
+                <span id="dc_codigo">—</span>
+            </div>
+            <button class="modal-close" onclick="fecharModal('modalDetalhesContrato')">×</button>
+        </div>
+
+        <div class="detail-grid">
+            <div class="detail-box"><label>Evento</label><div class="val" id="dc_evento">—</div></div>
+            <div class="detail-box"><label>Fornecedor</label><div class="val" id="dc_fornecedor">—</div></div>
+            <div class="detail-box"><label>Data do contrato</label><div class="val" id="dc_data">—</div></div>
+            <div class="detail-box"><label>Responsável</label><div class="val" id="dc_responsavel">—</div></div>
+            <div class="detail-box"><label>Contato</label><div class="val" id="dc_contato">—</div></div>
+            <div class="detail-box"><label>Valor adiantamento</label><div class="val" id="dc_valorPago">—</div></div>
+            <div class="detail-box"><label>Valor total</label><div class="val" id="dc_valorTotal">—</div></div>
+            <div class="detail-box"><label>Status</label><div class="val" id="dc_situacao">—</div></div>
+        </div>
+
+        <div class="panel-card" style="margin-bottom:14px;">
+            <label style="font-size:10px; color:#94A3B8; text-transform:uppercase; margin-bottom:6px; display:block;">Objetivo / Escopo</label>
+            <div id="dc_objeto" style="font-size:13px;">—</div>
+        </div>
+
+        <div id="dc_anexo_wrap" style="margin-bottom:16px;"></div>
+
+        <div class="modal-footer">
+            <button type="button" class="btn-outline" onclick="editarContratoAPartirDeDetalhes()">✎ Editar contrato</button>
+            <div style="display:flex; gap:8px;">
+                <button type="button" class="btn-outline" onclick="exportarContratoDetalhesPDF()">⬇ Exportar contrato</button>
+                <button type="button" class="btn-outline" onclick="fecharModal('modalDetalhesContrato')">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="modal-overlay" id="modalContrato">
     <div class="modal-box wide">
         <div class="modal-header">
@@ -1339,14 +1390,15 @@
             <button class="modal-close" onclick="fecharModal('modalContrato')">×</button>
         </div>
 
-        <form id="formContrato" action="${pageContext.request.contextPath}/contratoController" method="post" onsubmit="return prepararSubmitContrato();">
+        <form id="formContrato" action="${pageContext.request.contextPath}/contratoController" method="post"
+              enctype="multipart/form-data" onsubmit="return prepararSubmitContrato();">
 
             <input type="hidden" name="action" id="contratoAction" value="novo">
             <input type="hidden" name="id_contrato" id="contratoId">
             <input type="hidden" name="id_fornecedor" id="contratoIdFornecedor">
             <input type="hidden" name="id_evento" id="contratoIdEvento">
             <input type="hidden" name="data_contrato" id="contratoDataHidden">
-            <input type="hidden" name="anexo_contrato" value="">
+            <input type="hidden" name="anexo_contrato_atual" id="contratoAnexoAtual" value="">
 
             <div class="fields-row-2">
                 <div class="field">
@@ -1411,10 +1463,10 @@
 
             <div class="field">
                 <label>Documento do contrato</label>
-                <div class="upload-box">
-                    ⬆<br>
-                    Arraste o arquivo aqui ou <a>clique para selecionar</a><br>
-                    PDF, DOC, DOCX — upload direto ainda não é suportado nesta versão
+                <div class="upload-box" style="text-align:left;">
+                    <input type="file" name="arquivo_contrato" id="contratoArquivoInput" accept=".pdf,.doc,.docx" style="width:100%;">
+                    <div id="contratoAnexoExistenteLabel" style="margin-top:8px; font-size:11px; color:#059669;"></div>
+                    <div style="margin-top:6px; font-size:10px; color:#94A3B8;">PDF, DOC, DOCX — até 10MB</div>
                 </div>
             </div>
 
@@ -1559,7 +1611,8 @@
             responsavel: '<%= js(c.getResponsavel_contrato()) %>',
             contato: '<%= js(c.getContato_responsavel()) %>',
             objeto: '<%= js(c.getObjeto_contrato()) %>',
-            situacao: '<%= situacao %>'
+            situacao: '<%= situacao %>',
+            anexo: '<%= js(c.getAnexo_contrato()) %>'
         },
         <%
             }
@@ -1690,7 +1743,7 @@
                     <span>Responsável: \${c.responsavel}</span>
                 </div>
                 <span class="status-pill \${c.situacao === 'Pendente' ? 'pendente' : ''}">\${c.situacao}</span>
-                <button class="btn-outline" onclick="abrirModalContrato(\${c.id})">📄 Ver contrato</button>
+                <button class="btn-outline" onclick="abrirDetalhesContrato(\${c.id})">📄 Ver contrato</button>
             </div>
         `).join('') || '<div class="empty-state">Nenhum fornecedor vinculado ainda.</div>';
 
@@ -1774,7 +1827,7 @@
                 <td>R$ \${c.valorPago.toFixed(2)}</td>
                 <td>\${c.responsavel}</td>
                 <td><span class="status-pill \${c.situacao === 'Pendente' ? 'pendente' : ''}">\${c.situacao}</span></td>
-                <td><button class="btn-outline" onclick="abrirModalContrato(\${c.id})">👁 Ver</button></td>
+                <td><button class="btn-outline" onclick="abrirDetalhesContrato(\${c.id})">👁 Ver</button></td>
             </tr>
         `).join('') || '<tr><td colspan="8" style="text-align:center;color:#94A3B8;">Nenhum contrato ainda.</td></tr>';
 
@@ -1789,6 +1842,8 @@
 
         const form = document.getElementById('formContrato');
         form.reset();
+        document.getElementById('contratoAnexoAtual').value = '';
+        document.getElementById('contratoAnexoExistenteLabel').textContent = '';
 
         if (idContrato) {
             // ---- MODO VISUALIZAR / EDITAR ----
@@ -1810,6 +1865,12 @@
             document.getElementById('contratoContato').value = c.contato;
             document.getElementById('contratoObjeto').value = c.objeto;
 
+            if (c.anexo) {
+                document.getElementById('contratoAnexoAtual').value = c.anexo;
+                document.getElementById('contratoAnexoExistenteLabel').textContent =
+                    '📎 Já existe um arquivo anexado. Envie um novo apenas se quiser substituí-lo.';
+            }
+
         } else {
             // ---- MODO NOVO CONTRATO ----
             document.getElementById('contratoAction').value = 'novo';
@@ -1830,6 +1891,71 @@
         }
 
         document.getElementById('modalContrato').classList.add('open');
+    }
+
+    // =========================================================
+    // DETALHES DO CONTRATO (somente leitura — img5)
+    // =========================================================
+
+    let currentContratoDetalheId = null;
+
+    function abrirDetalhesContrato(idContrato) {
+        const c = contratosData.find(x => x.id === idContrato);
+        if (!c) return;
+
+        currentContratoDetalheId = idContrato;
+
+        document.getElementById('dc_codigo').textContent = 'CTR-' + String(c.id).padStart(3, '0');
+        document.getElementById('dc_evento').textContent = c.nomeEvento;
+        document.getElementById('dc_fornecedor').textContent = c.nomeFornecedor;
+        document.getElementById('dc_data').textContent = c.dataFormatada;
+        document.getElementById('dc_responsavel').textContent = c.responsavel;
+        document.getElementById('dc_contato').textContent = c.contato || '—';
+        document.getElementById('dc_valorPago').textContent = 'R$ ' + c.valorPago.toFixed(2);
+        document.getElementById('dc_valorTotal').textContent = 'R$ ' + c.valorTotal.toFixed(2);
+        document.getElementById('dc_situacao').textContent = c.situacao;
+        document.getElementById('dc_objeto').textContent = c.objeto || '—';
+
+        const anexoWrap = document.getElementById('dc_anexo_wrap');
+        if (c.anexo) {
+            const nomeArquivo = c.anexo.split('/').pop();
+            anexoWrap.innerHTML = `
+                <a href="${pageContext.request.contextPath}/\\${c.anexo}" target="_blank"
+                   style="display:flex; align-items:center; gap:8px; padding:10px 14px; background:#ECFDF5; border:1px solid #A7F3D0; border-radius:9px; color:#065F46; font-size:13px; font-weight:600;">
+                   📎 \\${nomeArquivo}
+                </a>
+            `;
+        } else {
+            anexoWrap.innerHTML = '<div style="font-size:12px; color:#94A3B8;">Nenhum arquivo anexado a este contrato.</div>';
+        }
+
+        document.getElementById('modalDetalhesContrato').classList.add('open');
+    }
+
+    function editarContratoAPartirDeDetalhes() {
+        fecharModal('modalDetalhesContrato');
+        abrirModalContrato(currentContratoDetalheId);
+    }
+
+    function exportarContratoDetalhesPDF() {
+        const c = contratosData.find(x => x.id === currentContratoDetalheId);
+        if (!c) return;
+
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        doc.setFontSize(14);
+        doc.text('Contrato CTR-' + String(c.id).padStart(3, '0'), 14, 18);
+        doc.autoTable({
+            startY: 26,
+            body: [
+                ['Evento', c.nomeEvento], ['Fornecedor', c.nomeFornecedor],
+                ['Data do contrato', c.dataFormatada], ['Responsável', c.responsavel],
+                ['Contato', c.contato || '-'], ['Valor adiantamento', 'R$ ' + c.valorPago.toFixed(2)],
+                ['Valor total', 'R$ ' + c.valorTotal.toFixed(2)], ['Status', c.situacao],
+                ['Objetivo/Escopo', c.objeto || '-']
+            ]
+        });
+        doc.save('contrato-CTR-' + String(c.id).padStart(3, '0') + '.pdf');
     }
 
     function prepararSubmitContrato() {

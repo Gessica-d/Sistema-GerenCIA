@@ -10,7 +10,7 @@ public class inscricaoModel {
     private LocalDateTime data_inscricao;
     private String status_inscricao;
     private String metodo_inscricao;
-    private boolean checkin;
+    private LocalDateTime checkin;
     private int posicao_fila;
 
     // Construtor vazio
@@ -22,7 +22,7 @@ public class inscricaoModel {
                           LocalDateTime data_inscricao,
                           String status_inscricao,
                           String metodo_inscricao,
-                          boolean checkin,
+                          LocalDateTime checkin,
                           int posicao_fila) {
 
         this.id_evento = id_evento;
@@ -39,7 +39,7 @@ public class inscricaoModel {
                           int id_usuario, LocalDateTime data_inscricao,
                           String status_inscricao,
                           String metodo_inscricao,
-                          boolean checkin_inscricao,
+                          LocalDateTime checkin,
                           int posicaoFila_inscricao) {
 
         this.id_inscricao = id_inscricao;
@@ -49,7 +49,7 @@ public class inscricaoModel {
         this.status_inscricao = status_inscricao;
         this.metodo_inscricao = metodo_inscricao;
         this.checkin = checkin;
-        this.posicao_fila = posicao_fila;
+        this.posicao_fila = posicaoFila_inscricao;
     }
 
     // Getters e Setters
@@ -102,11 +102,11 @@ public class inscricaoModel {
         this.metodo_inscricao = metodo_inscricao;
     }
 
-    public boolean isCheckin() {
+    public LocalDateTime getCheckin() {
         return checkin;
     }
 
-    public void setCheckin(boolean checkin) {
+    public void setCheckin(LocalDateTime checkin) {
         this.checkin = checkin;
     }
 

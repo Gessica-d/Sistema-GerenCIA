@@ -1,8 +1,12 @@
 <%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
 <%@ page import="br.com.gerencia.model.usuarioModel"%>
+<%@ page import="br.com.gerencia.model.eventoModel"%>
 <%@ page import="br.com.gerencia.dao.usuarioDAO"%>
+<%@ page import="br.com.gerencia.dao.eventoDAO"%>
+<%@ page import="br.com.gerencia.dao.inscricaoDAO"%>
 <%@ page import="br.com.gerencia.utils.Conexao"%>
 <%@ page import="java.util.List"%>
+<%@ page import="java.util.HashMap"%>
 <%
     // ================= GUARDA DE SESSÃO =================
     usuarioModel usuarioLogado = (usuarioModel) session.getAttribute("usuarioLogado");
@@ -35,6 +39,73 @@
         listaUsuarios = new java.util.ArrayList<usuarioModel>();
     }
 
+    // ================= LISTA REAL DE EVENTOS (todos, de todos os organizadores) =================
+    eventoDAO eventoDAOJsp = new eventoDAO(Conexao.getConnection());
+    inscricaoDAO inscricaoDAOAdminJsp = new inscricaoDAO(Conexao.getConnection());
+
+    List<eventoModel> listaEventosAdmin = eventoDAOJsp.listarEventos();
+
+    HashMap<Integer, String> nomeOrganizadorPorId = new HashMap<Integer, String>();
+    for (usuarioModel u : listaUsuarios) {
+        nomeOrganizadorPorId.put(u.getId_usuario(), u.getNome_usuario());
+    }
+
+    // agregados do dashboard (tudo calculado a partir dos dados acima, nada fixo)
+    int totalUsuarios = listaUsuarios.size();
+
+    int totalOrganizadores = 0;
+    int totalClientesAdmin = 0;
+    int totalAdmins = 0;
+    for (usuarioModel u : listaUsuarios) {
+        if ("organizador".equals(u.getTipo_usuario())) totalOrganizadores++;
+        else if ("admin".equals(u.getTipo_usuario())) totalAdmins++;
+        else totalClientesAdmin++;
+    }
+
+    int totalEventosPlataforma = listaEventosAdmin.size();
+
+    // uma única busca de todas as inscrições, agregada em memória
+    // (evita 1 consulta ao banco por evento)
+    HashMap<Integer, Integer> confirmadosPorEventoAdmin = new HashMap<Integer, Integer>();
+    HashMap<Integer, Integer> checkinsPorEventoAdmin = new HashMap<Integer, Integer>();
+    int totalInscricoesPlataforma = 0;
+
+    for (br.com.gerencia.model.inscricaoModel insc : inscricaoDAOAdminJsp.listarInscricoes()) {
+
+        if ("Confirmada".equals(insc.getStatus_inscricao())) {
+
+            totalInscricoesPlataforma++;
+
+            int idEv = insc.getId_evento();
+            confirmadosPorEventoAdmin.put(idEv, confirmadosPorEventoAdmin.getOrDefault(idEv, 0) + 1);
+
+            if (insc.getCheckin() != null) {
+                checkinsPorEventoAdmin.put(idEv, checkinsPorEventoAdmin.getOrDefault(idEv, 0) + 1);
+            }
+        }
+    }
+
+    int somaTecCientifico = 0, somaSociais = 0, somaCorporativos = 0;
+
+    for (eventoModel ev : listaEventosAdmin) {
+        if ("tecCientifico".equals(ev.getCategoria_evento())) somaTecCientifico++;
+        else if ("sociais".equals(ev.getCategoria_evento())) somaSociais++;
+        else if ("corporativos".equals(ev.getCategoria_evento())) somaCorporativos++;
+    }
+
+    int pctTecCientifico = totalEventosPlataforma > 0 ? Math.round(somaTecCientifico * 100f / totalEventosPlataforma) : 0;
+    int pctSociais = totalEventosPlataforma > 0 ? Math.round(somaSociais * 100f / totalEventosPlataforma) : 0;
+    int pctCorporativos = totalEventosPlataforma > 0 ? Math.round(somaCorporativos * 100f / totalEventosPlataforma) : 0;
+
+    // geometria do donut (raio 70 => circunferência 439.82), calculada a partir dos % reais
+    double circDonut = 439.82;
+    double lenTec = (pctTecCientifico / 100.0) * circDonut;
+    double lenSoc = (pctSociais / 100.0) * circDonut;
+    double lenCorp = (pctCorporativos / 100.0) * circDonut;
+    double offTec = 0;
+    double offSoc = -lenTec;
+    double offCorp = -(lenTec + lenSoc);
+
     // ================= MENSAGEM FLASH (ex: senha redefinida) =================
     String flashMsg = (String) session.getAttribute("flashMsg");
     if (flashMsg != null) {
@@ -44,10 +115,27 @@
     // ================= HELPER: rótulo de exibição do tipo_usuario =================
 %>
 <%!
+    private String js(String s) {
+        if (s == null) return "";
+        return s.replace("\\", "\\\\").replace("'", "\\'").replace("\"", "&quot;").replace("\r", " ").replace("\n", " ");
+    }
     private String rotuloTipo(String tipo) {
         if ("organizador".equals(tipo)) return "Organizador";
         if ("admin".equals(tipo)) return "Admin";
         return "Cliente";
+    }
+    private String rotuloCategoriaEvento(String c) {
+        if ("tecCientifico".equals(c)) return "TecCientifico";
+        if ("sociais".equals(c)) return "Sociais";
+        if ("corporativos".equals(c)) return "Corporativos";
+        return c;
+    }
+    private String rotuloStatusEvento(String s) {
+        if ("ativo".equals(s)) return "Ativo";
+        if ("rascunho".equals(s)) return "Rascunho";
+        if ("cancelado".equals(s)) return "Cancelado";
+        if ("finalizado".equals(s)) return "Finalizado";
+        return s;
     }
 %>
 <!DOCTYPE html>
@@ -588,17 +676,17 @@
                             <span class="label">Total de usuários</span>
                             <div class="stat-icon">👥</div>
                         </div>
-                        <strong>7</strong>
-                        <span class="delta">↓ +12 este mês</span>
+                        <strong><%= totalUsuarios %></strong>
+                        <span class="delta"><%= totalClientesAdmin %> clientes · <%= totalOrganizadores %> organizadores · <%= totalAdmins %> admin(s)</span>
                     </div>
 
                     <div class="stat-card">
                         <div class="row-top">
-                            <span class="label">Organizadores ativos</span>
+                            <span class="label">Organizadores</span>
                             <div class="stat-icon">🏢</div>
                         </div>
-                        <strong>2</strong>
-                        <span class="delta">↓ +3 este mês</span>
+                        <strong><%= totalOrganizadores %></strong>
+                        <span class="delta">&nbsp;</span>
                     </div>
 
                     <div class="stat-card">
@@ -606,17 +694,17 @@
                             <span class="label">Eventos na plataforma</span>
                             <div class="stat-icon">📅</div>
                         </div>
-                        <strong>6</strong>
-                        <span class="delta">↓ +5 esta semana</span>
+                        <strong><%= totalEventosPlataforma %></strong>
+                        <span class="delta">&nbsp;</span>
                     </div>
 
                     <div class="stat-card">
                         <div class="row-top">
-                            <span class="label">Total de inscrições</span>
+                            <span class="label">Total de inscrições confirmadas</span>
                             <div class="stat-icon">📈</div>
                         </div>
-                        <strong>1.240</strong>
-                        <span class="delta">↓ +148 esta semana</span>
+                        <strong><%= totalInscricoesPlataforma %></strong>
+                        <span class="delta">&nbsp;</span>
                     </div>
 
                 </div>
@@ -625,56 +713,64 @@
 
                     <div class="panel-card">
                         <h3>Eventos por categoria</h3>
-                        <p class="hint">Clique em uma fatia para filtrar eventos</p>
+                        <p class="hint"><%= totalEventosPlataforma %> evento(s) no total</p>
 
+                        <% if (totalEventosPlataforma == 0) { %>
+                            <div class="empty-state">Nenhum evento cadastrado ainda.</div>
+                        <% } else { %>
                         <div class="donut-wrap">
 
                             <svg viewBox="0 0 180 180" width="150" height="150">
                                 <g transform="rotate(-90 90 90)">
                                     <circle cx="90" cy="90" r="70" fill="none" stroke="#2563EB" stroke-width="24"
-                                        stroke-dasharray="167.13 439.82" stroke-dashoffset="0" />
-                                    <circle cx="90" cy="90" r="70" fill="none" stroke="#7C3AED" stroke-width="24"
-                                        stroke-dasharray="118.75 439.82" stroke-dashoffset="-167.13" />
+                                        stroke-dasharray="<%= lenTec %> <%= circDonut %>" stroke-dashoffset="<%= offTec %>" />
                                     <circle cx="90" cy="90" r="70" fill="none" stroke="#10B981" stroke-width="24"
-                                        stroke-dasharray="83.57 439.82" stroke-dashoffset="-285.88" />
-                                    <circle cx="90" cy="90" r="70" fill="none" stroke="#F59E0B" stroke-width="24"
-                                        stroke-dasharray="48.38 439.82" stroke-dashoffset="-369.45" />
-                                    <circle cx="90" cy="90" r="70" fill="none" stroke="#94A3B8" stroke-width="24"
-                                        stroke-dasharray="21.99 439.82" stroke-dashoffset="-417.83" />
+                                        stroke-dasharray="<%= lenSoc %> <%= circDonut %>" stroke-dashoffset="<%= offSoc %>" />
+                                    <circle cx="90" cy="90" r="70" fill="none" stroke="#7C3AED" stroke-width="24"
+                                        stroke-dasharray="<%= lenCorp %> <%= circDonut %>" stroke-dashoffset="<%= offCorp %>" />
                                 </g>
                             </svg>
 
                             <div style="flex:1;">
-                                <div class="legend-item"><span class="legend-dot" style="background:#2563EB;"></span> TecCientifico <span class="pct">38%</span></div>
-                                <div class="legend-item"><span class="legend-dot" style="background:#7C3AED;"></span> Corporativas <span class="pct">27%</span></div>
-                                <div class="legend-item"><span class="legend-dot" style="background:#10B981;"></span> Sociais <span class="pct">19%</span></div>
-                                <div class="legend-item"><span class="legend-dot" style="background:#F59E0B;"></span> Entretenimento <span class="pct">11%</span></div>
-                                <div class="legend-item"><span class="legend-dot" style="background:#94A3B8;"></span> Outros <span class="pct">5%</span></div>
+                                <div class="legend-item" style="cursor:pointer;" onclick="mudarView('eventos', document.querySelector('[data-view=eventos]')); filtrarEventosPorCategoria('tecCientifico');">
+                                    <span class="legend-dot" style="background:#2563EB;"></span> TecCientifico <span class="pct"><%= pctTecCientifico %>% (<%= somaTecCientifico %>)</span>
+                                </div>
+                                <div class="legend-item" style="cursor:pointer;" onclick="mudarView('eventos', document.querySelector('[data-view=eventos]')); filtrarEventosPorCategoria('sociais');">
+                                    <span class="legend-dot" style="background:#10B981;"></span> Sociais <span class="pct"><%= pctSociais %>% (<%= somaSociais %>)</span>
+                                </div>
+                                <div class="legend-item" style="cursor:pointer;" onclick="mudarView('eventos', document.querySelector('[data-view=eventos]')); filtrarEventosPorCategoria('corporativos');">
+                                    <span class="legend-dot" style="background:#7C3AED;"></span> Corporativos <span class="pct"><%= pctCorporativos %>% (<%= somaCorporativos %>)</span>
+                                </div>
                             </div>
 
                         </div>
+                        <% } %>
                     </div>
 
                     <div class="panel-card">
-                        <h3>Novas contas por período</h3>
-                        <div class="chart-legend-line">
-                            <span><span class="legend-line-dot" style="background:#2563EB;"></span> Clientes</span>
-                            <span><span class="legend-line-dot" style="background:#7C3AED;"></span> Organizadores</span>
-                        </div>
+                        <h3>Usuários por tipo de conta</h3>
+                        <p class="hint">Distribuição atual (sem histórico — o banco não guarda data de criação do usuário)</p>
 
-                        <svg viewBox="0 0 560 180" style="width:100%; height:180px;">
-                            <polyline fill="none" stroke="#2563EB" stroke-width="2.5"
-                                points="0,160 90,120 180,100 270,90 360,50 450,45 540,35" />
-                            <polyline fill="none" stroke="#7C3AED" stroke-width="2.5"
-                                points="0,168 90,165 180,158 270,160 360,150 450,152 540,148" />
-                            <text x="0" y="178" font-size="10" fill="#94A3B8">Jan</text>
-                            <text x="85" y="178" font-size="10" fill="#94A3B8">Fev</text>
-                            <text x="175" y="178" font-size="10" fill="#94A3B8">Mar</text>
-                            <text x="265" y="178" font-size="10" fill="#94A3B8">Abr</text>
-                            <text x="355" y="178" font-size="10" fill="#94A3B8">Mai</text>
-                            <text x="445" y="178" font-size="10" fill="#94A3B8">Jun</text>
-                            <text x="525" y="178" font-size="10" fill="#94A3B8">Jul</text>
-                        </svg>
+                        <div style="display:flex; flex-direction:column; gap:12px; margin-top:10px;">
+                            <div>
+                                <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;">
+                                    <span>Clientes</span><strong><%= totalClientesAdmin %></strong>
+                                </div>
+                                <div class="mini-bar" style="height:8px;"><span style="width:<%= totalUsuarios > 0 ? (totalClientesAdmin*100/totalUsuarios) : 0 %>%; background:#2563EB; display:block; height:100%; border-radius:4px;"></span></div>
+                            </div>
+                            <div>
+                                <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;">
+                                    <span>Organizadores</span><strong><%= totalOrganizadores %></strong>
+                                </div>
+                                <div class="mini-bar" style="height:8px;"><span style="width:<%= totalUsuarios > 0 ? (totalOrganizadores*100/totalUsuarios) : 0 %>%; background:#7C3AED; display:block; height:100%; border-radius:4px;"></span></div>
+                            </div>
+                            <div>
+                                <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;">
+                                    <span>Admins</span><strong><%= totalAdmins %></strong>
+                                </div>
+                                <div class="mini-bar" style="height:8px;"><span style="width:<%= totalUsuarios > 0 ? (totalAdmins*100/totalUsuarios) : 0 %>%; background:#0F172A; display:block; height:100%; border-radius:4px;"></span></div>
+                            </div>
+                        </div>
                     </div>
 
                 </div>
@@ -690,22 +786,40 @@
                             <thead>
                                 <tr>
                                     <th>Evento</th><th>Categoria</th><th>Data</th><th>Capacidade</th>
-                                    <th>Inscritos</th><th>Comparecimento</th><th>Ocupação</th><th>Status</th>
+                                    <th>Inscritos</th><th>Check-in</th><th>Ocupação</th><th>Status</th>
                                 </tr>
                             </thead>
                             <tbody>
+                                <%
+                                    int mostradosRecentes = 0;
+                                    for (eventoModel ev : listaEventosAdmin) {
+                                        if (mostradosRecentes >= 5) break;
+                                        mostradosRecentes++;
+
+                                        int confirmadosEv = confirmadosPorEventoAdmin.getOrDefault(ev.getId_evento(), 0);
+                                        int checkinsEv = checkinsPorEventoAdmin.getOrDefault(ev.getId_evento(), 0);
+                                        int ocupacaoEv = ev.getCapacidade_evento() > 0 ? (confirmadosEv * 100 / ev.getCapacidade_evento()) : 0;
+                                        String nomeOrg = nomeOrganizadorPorId.getOrDefault(ev.getId_organizador(), "—");
+                                        String statusClasseEv = "ativo".equals(ev.getStatus_evento()) ? "" : ev.getStatus_evento();
+                                %>
                                 <tr>
-                                    <td><strong>Summit de Tecnologia 2025</strong><br><span style="color:#94A3B8;font-size:11px;">TechCo Eventos</span></td>
-                                    <td>TecCientifico</td><td>15 Ago 2025</td><td>200</td>
-                                    <td>155 (78%)</td><td>128 (83%)</td><td>78%</td>
-                                    <td><span class="status-pill">Ativo</span></td>
+                                    <td><strong><%= ev.getNome_evento() %></strong><br><span style="color:#94A3B8;font-size:11px;"><%= nomeOrg %></span></td>
+                                    <td><%= rotuloCategoriaEvento(ev.getCategoria_evento()) %></td>
+                                    <td><%= ev.getInicio_evento().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")) %></td>
+                                    <td><%= ev.getCapacidade_evento() %></td>
+                                    <td><%= confirmadosEv %> (<%= ocupacaoEv %>%)</td>
+                                    <td><%= checkinsEv %></td>
+                                    <td><%= ocupacaoEv %>%</td>
+                                    <td><span class="status-pill <%= statusClasseEv %>"><%= rotuloStatusEvento(ev.getStatus_evento()) %></span></td>
                                 </tr>
-                                <tr>
-                                    <td><strong>Workshop de UX Design</strong><br><span style="color:#94A3B8;font-size:11px;">DesignLab BR</span></td>
-                                    <td>Corporativas</td><td>22 Ago 2025</td><td>80</td>
-                                    <td>80 (100%)</td><td>74 (93%)</td><td>100%</td>
-                                    <td><span class="status-pill">Ativo</span></td>
-                                </tr>
+                                <%
+                                    }
+                                    if (listaEventosAdmin.isEmpty()) {
+                                %>
+                                <tr><td colspan="8" style="text-align:center; color:#94A3B8;">Nenhum evento cadastrado ainda.</td></tr>
+                                <%
+                                    }
+                                %>
                             </tbody>
                         </table>
                     </div>
@@ -721,26 +835,25 @@
                 <div class="view-header">
                     <div>
                         <h1>Todos os Eventos</h1>
-                        <p>6 eventos na plataforma</p>
+                        <p><%= listaEventosAdmin.size() %> evento(s) na plataforma</p>
                     </div>
-                    <button class="btn-outline">⬇ Exportar</button>
+                    <button class="btn-outline" onclick="exportarEventosAdminPDF()">⬇ Exportar</button>
                 </div>
 
                 <div class="filters-row">
-                    <input class="search-input" type="text" placeholder="Buscar evento ou organizador...">
-                    <select class="filter-select">
-                        <option>Todos os status</option>
-                        <option>Ativo</option>
-                        <option>Rascunho</option>
-                        <option>Cancelado</option>
-                        <option>Finalizado</option>
+                    <input class="search-input" type="text" id="buscaEventoAdmin" placeholder="Buscar evento ou organizador..." oninput="filtrarEventosAdmin()">
+                    <select class="filter-select" id="filtroStatusAdmin" onchange="filtrarEventosAdmin()">
+                        <option value="">Todos os status</option>
+                        <option value="ativo">Ativo</option>
+                        <option value="rascunho">Rascunho</option>
+                        <option value="cancelado">Cancelado</option>
+                        <option value="finalizado">Finalizado</option>
                     </select>
-                    <select class="filter-select">
-                        <option>Todas as categorias</option>
-                        <option>TecCientifico</option>
-                        <option>Corporativas</option>
-                        <option>Sociais</option>
-                        <option>Entretenimento</option>
+                    <select class="filter-select" id="filtroCategoriaAdmin" onchange="filtrarEventosAdmin()">
+                        <option value="">Todas as categorias</option>
+                        <option value="tecCientifico">TecCientifico</option>
+                        <option value="corporativos">Corporativos</option>
+                        <option value="sociais">Sociais</option>
                     </select>
                 </div>
 
@@ -749,13 +862,30 @@
                         <thead>
                             <tr><th>Evento</th><th>Organizador</th><th>Categoria</th><th>Data</th><th>Status</th><th>Vagas</th></tr>
                         </thead>
-                        <tbody>
-                            <tr><td>Summit de Tecnologia 2025</td><td>TechCo Eventos</td><td>TecCientifico</td><td>15 Ago 2025</td><td><span class="status-pill">Ativo</span></td><td>155/200</td></tr>
-                            <tr><td>Workshop de UX Design</td><td>DesignLab BR</td><td>Corporativas</td><td>22 Ago 2025</td><td><span class="status-pill">Ativo</span></td><td>80/80</td></tr>
-                            <tr><td>Happy Hour Corporativo</td><td>Rafael Organizer</td><td>Sociais</td><td>10 Set 2025</td><td><span class="status-pill rascunho">Rascunho</span></td><td>0/50</td></tr>
-                            <tr><td>Conferência de Inovação</td><td>TechCo Eventos</td><td>TecCientifico</td><td>01 Out 2025</td><td><span class="status-pill">Ativo</span></td><td>87/300</td></tr>
-                            <tr><td>Expo Empreendedorismo</td><td>EventPro</td><td>Corporativas</td><td>12 Set 2025</td><td><span class="status-pill">Ativo</span></td><td>150/500</td></tr>
-                            <tr><td>Festival de Música</td><td>VibeEvents</td><td>Entretenimento</td><td>20 Set 2025</td><td><span class="status-pill">Ativo</span></td><td>800/1000</td></tr>
+                        <tbody id="corpoEventosAdmin">
+                            <%
+                                for (eventoModel ev : listaEventosAdmin) {
+                                    int confirmadosEvT = confirmadosPorEventoAdmin.getOrDefault(ev.getId_evento(), 0);
+                                    String nomeOrgT = nomeOrganizadorPorId.getOrDefault(ev.getId_organizador(), "—");
+                                    String statusClasseT = "ativo".equals(ev.getStatus_evento()) ? "" : ev.getStatus_evento();
+                            %>
+                            <tr data-status="<%= ev.getStatus_evento() %>" data-categoria="<%= ev.getCategoria_evento() %>"
+                                data-busca="<%= js(ev.getNome_evento()).toLowerCase() %> <%= js(nomeOrgT).toLowerCase() %>">
+                                <td><%= ev.getNome_evento() %></td>
+                                <td><%= nomeOrgT %></td>
+                                <td><%= rotuloCategoriaEvento(ev.getCategoria_evento()) %></td>
+                                <td><%= ev.getInicio_evento().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")) %></td>
+                                <td><span class="status-pill <%= statusClasseT %>"><%= rotuloStatusEvento(ev.getStatus_evento()) %></span></td>
+                                <td><%= confirmadosEvT %>/<%= ev.getCapacidade_evento() %></td>
+                            </tr>
+                            <%
+                                }
+                                if (listaEventosAdmin.isEmpty()) {
+                            %>
+                            <tr><td colspan="6" style="text-align:center; color:#94A3B8;">Nenhum evento cadastrado ainda.</td></tr>
+                            <%
+                                }
+                            %>
                         </tbody>
                     </table>
                 </div>
@@ -775,11 +905,14 @@
                 </div>
 
                 <div class="note-box">
-                    ⚠️ No banco atual, categoria é um campo fixo (ENUM) dentro da tabela <code>evento</code>, não uma tabela própria.
-                    Esta tela mostra a distribuição para consulta; criar/editar categorias livremente exigiria uma tabela
-                    <code>categoria</code> separada — posso montar essa migração se você quiser essa flexibilidade.
+                    ⚠️ No banco atual, categoria é um campo fixo (ENUM: sociais, corporativos, tecCientifico) dentro da tabela <code>evento</code>,
+                    não uma tabela própria. Esta tela mostra a distribuição real para consulta; criar/editar categorias livremente exigiria uma
+                    tabela <code>categoria</code> separada — posso montar essa migração se você quiser essa flexibilidade.
                 </div>
 
+                <% if (totalEventosPlataforma == 0) { %>
+                <div class="empty-state">Nenhum evento cadastrado ainda.</div>
+                <% } else { %>
                 <div class="categorias-grid">
 
                     <div class="categoria-card">
@@ -787,17 +920,17 @@
                             <strong>TecCientifico</strong>
                             <span class="dot" style="background:#2563EB;"></span>
                         </div>
-                        <span class="count">38% dos eventos · 3 eventos</span>
-                        <div class="bar"><span style="width:38%; background:#2563EB;"></span></div>
+                        <span class="count"><%= pctTecCientifico %>% dos eventos · <%= somaTecCientifico %> evento(s)</span>
+                        <div class="bar"><span style="width:<%= pctTecCientifico %>%; background:#2563EB;"></span></div>
                     </div>
 
                     <div class="categoria-card">
                         <div class="top">
-                            <strong>Corporativas</strong>
+                            <strong>Corporativos</strong>
                             <span class="dot" style="background:#7C3AED;"></span>
                         </div>
-                        <span class="count">27% dos eventos · 2 eventos</span>
-                        <div class="bar"><span style="width:27%; background:#7C3AED;"></span></div>
+                        <span class="count"><%= pctCorporativos %>% dos eventos · <%= somaCorporativos %> evento(s)</span>
+                        <div class="bar"><span style="width:<%= pctCorporativos %>%; background:#7C3AED;"></span></div>
                     </div>
 
                     <div class="categoria-card">
@@ -805,29 +938,12 @@
                             <strong>Sociais</strong>
                             <span class="dot" style="background:#10B981;"></span>
                         </div>
-                        <span class="count">19% dos eventos · 1 evento</span>
-                        <div class="bar"><span style="width:19%; background:#10B981;"></span></div>
-                    </div>
-
-                    <div class="categoria-card">
-                        <div class="top">
-                            <strong>Entretenimento</strong>
-                            <span class="dot" style="background:#F59E0B;"></span>
-                        </div>
-                        <span class="count">11% dos eventos · 1 evento</span>
-                        <div class="bar"><span style="width:11%; background:#F59E0B;"></span></div>
-                    </div>
-
-                    <div class="categoria-card">
-                        <div class="top">
-                            <strong>Outros</strong>
-                            <span class="dot" style="background:#94A3B8;"></span>
-                        </div>
-                        <span class="count">5% dos eventos</span>
-                        <div class="bar"><span style="width:5%; background:#94A3B8;"></span></div>
+                        <span class="count"><%= pctSociais %>% dos eventos · <%= somaSociais %> evento(s)</span>
+                        <div class="bar"><span style="width:<%= pctSociais %>%; background:#10B981;"></span></div>
                     </div>
 
                 </div>
+                <% } %>
 
             </section>
 
@@ -927,7 +1043,62 @@
         document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
         document.getElementById('view-' + viewId).classList.add('active');
         document.querySelectorAll('.sidebar .nav-item').forEach(el => el.classList.remove('active'));
-        botao.classList.add('active');
+        if (botao) botao.classList.add('active');
+    }
+
+    function mudarViewById(viewId) {
+        const nav = document.querySelector('.sidebar .nav-item[data-view="' + viewId + '"]');
+        mudarView(viewId, nav);
+    }
+
+    (function abrirViewInicial() {
+        const params = new URLSearchParams(window.location.search);
+        const view = params.get('view');
+        if (view) mudarViewById(view);
+    })();
+
+    // =========================================================
+    // EVENTOS (ADMIN) — filtro por busca/status/categoria
+    // =========================================================
+
+    function filtrarEventosAdmin() {
+        const busca = document.getElementById('buscaEventoAdmin').value.toLowerCase();
+        const status = document.getElementById('filtroStatusAdmin').value;
+        const categoria = document.getElementById('filtroCategoriaAdmin').value;
+
+        document.querySelectorAll('#corpoEventosAdmin tr[data-status]').forEach(function (row) {
+            const okBusca = busca === '' || (row.dataset.busca || '').includes(busca);
+            const okStatus = status === '' || row.dataset.status === status;
+            const okCategoria = categoria === '' || row.dataset.categoria === categoria;
+            row.style.display = (okBusca && okStatus && okCategoria) ? '' : 'none';
+        });
+    }
+
+    function filtrarEventosPorCategoria(categoria) {
+        document.getElementById('filtroCategoriaAdmin').value = categoria;
+        filtrarEventosAdmin();
+    }
+
+    function exportarEventosAdminPDF() {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        doc.setFontSize(14);
+        doc.text('Todos os Eventos - GerenCIA', 14, 18);
+
+        const linhas = [];
+        document.querySelectorAll('#corpoEventosAdmin tr[data-status]').forEach(function (row) {
+            if (row.style.display === 'none') return;
+            const tds = row.querySelectorAll('td');
+            linhas.push(Array.from(tds).map(td => td.textContent.trim()));
+        });
+
+        doc.autoTable({
+            startY: 26,
+            head: [['Evento', 'Organizador', 'Categoria', 'Data', 'Status', 'Vagas']],
+            body: linhas
+        });
+
+        doc.save('eventos-plataforma.pdf');
     }
 
     // =========================================================

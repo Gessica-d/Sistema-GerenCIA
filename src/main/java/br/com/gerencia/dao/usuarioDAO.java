@@ -198,6 +198,9 @@ public class usuarioDAO {
         return usuario;
     }
 
+    // ================= ATUALIZAR USUARIO =================
+    public void atualizarUsuario(usuarioModel usuario) throws Exception {
+
         String sql = "UPDATE usuario SET "
                    + "CPF_usuario = ?, "
                    + "tipo_usuario = ?, "
