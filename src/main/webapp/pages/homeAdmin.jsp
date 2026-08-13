@@ -588,10 +588,54 @@
         margin-bottom: 20px;
     }
 
+    .menu-toggle-btn {
+        display: none;
+        width: 34px; height: 34px;
+        border-radius: 8px;
+        border: 1px solid #E2E8F0;
+        background: #FFFFFF;
+        color: #0F172A;
+        font-size: 16px;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        flex-shrink: 0;
+    }
+
+    .sidebar-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(2,6,23,0.5);
+        z-index: 40;
+    }
+
+    .sidebar-overlay.open { display: block; }
+
     @media (max-width: 900px) {
-        .dash-cols { grid-template-columns: 1fr; }
         .app { grid-template-columns: 1fr; }
-        .sidebar { display: none; }
+
+        .sidebar {
+            position: fixed;
+            top: 0; left: 0;
+            height: 100vh;
+            width: 226px;
+            z-index: 50;
+            transform: translateX(-100%);
+            transition: transform 0.25s ease;
+        }
+
+        .sidebar.open { transform: translateX(0); }
+
+        .menu-toggle-btn { display: flex; }
+
+        .dash-cols { grid-template-columns: 1fr; }
+        .stats-grid { grid-template-columns: repeat(2, 1fr); }
+        .content { padding: 14px; }
+    }
+
+    @media (max-width: 480px) {
+        .stats-grid { grid-template-columns: 1fr; }
     }
 
 </style>
@@ -601,7 +645,7 @@
 <div class="app">
 
     <!-- ================= SIDEBAR ================= -->
-    <aside class="sidebar">
+    <aside class="sidebar" id="sidebarEl">
 
         <div class="sidebar-logo">
             <div class="sidebar-logo-icon">📊</div>
@@ -616,11 +660,6 @@
         <button class="nav-item" data-view="eventos" onclick="mudarView('eventos', this)">
             <span class="nav-icon">📅</span>
             <span class="nav-label">Eventos</span>
-        </button>
-
-        <button class="nav-item" data-view="categorias" onclick="mudarView('categorias', this)">
-            <span class="nav-icon">🏷</span>
-            <span class="nav-label">Categorias</span>
         </button>
 
         <button class="nav-item" data-view="usuarios" onclick="mudarView('usuarios', this)">
@@ -640,10 +679,13 @@
 
     </aside>
 
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
     <!-- ================= ÁREA PRINCIPAL ================= -->
     <div>
 
         <header class="topbar">
+            <button class="menu-toggle-btn" onclick="toggleSidebar()">☰</button>
             <div class="topbar-title">
                 <strong>GerenCIA</strong>
                 <span>Painel Administrativo</span>
@@ -893,61 +935,6 @@
             </section>
 
             <!-- ============================================================
-                 VIEW: CATEGORIAS
-            ============================================================ -->
-            <section class="view-section" id="view-categorias">
-
-                <div class="view-header">
-                    <div>
-                        <h1>Categorias</h1>
-                        <p>Distribuição de eventos por categoria</p>
-                    </div>
-                </div>
-
-                <div class="note-box">
-                    ⚠️ No banco atual, categoria é um campo fixo (ENUM: sociais, corporativos, tecCientifico) dentro da tabela <code>evento</code>,
-                    não uma tabela própria. Esta tela mostra a distribuição real para consulta; criar/editar categorias livremente exigiria uma
-                    tabela <code>categoria</code> separada — posso montar essa migração se você quiser essa flexibilidade.
-                </div>
-
-                <% if (totalEventosPlataforma == 0) { %>
-                <div class="empty-state">Nenhum evento cadastrado ainda.</div>
-                <% } else { %>
-                <div class="categorias-grid">
-
-                    <div class="categoria-card">
-                        <div class="top">
-                            <strong>TecCientifico</strong>
-                            <span class="dot" style="background:#2563EB;"></span>
-                        </div>
-                        <span class="count"><%= pctTecCientifico %>% dos eventos · <%= somaTecCientifico %> evento(s)</span>
-                        <div class="bar"><span style="width:<%= pctTecCientifico %>%; background:#2563EB;"></span></div>
-                    </div>
-
-                    <div class="categoria-card">
-                        <div class="top">
-                            <strong>Corporativos</strong>
-                            <span class="dot" style="background:#7C3AED;"></span>
-                        </div>
-                        <span class="count"><%= pctCorporativos %>% dos eventos · <%= somaCorporativos %> evento(s)</span>
-                        <div class="bar"><span style="width:<%= pctCorporativos %>%; background:#7C3AED;"></span></div>
-                    </div>
-
-                    <div class="categoria-card">
-                        <div class="top">
-                            <strong>Sociais</strong>
-                            <span class="dot" style="background:#10B981;"></span>
-                        </div>
-                        <span class="count"><%= pctSociais %>% dos eventos · <%= somaSociais %> evento(s)</span>
-                        <div class="bar"><span style="width:<%= pctSociais %>%; background:#10B981;"></span></div>
-                    </div>
-
-                </div>
-                <% } %>
-
-            </section>
-
-            <!-- ============================================================
                  VIEW: USUÁRIOS
             ============================================================ -->
             <section class="view-section" id="view-usuarios">
@@ -970,9 +957,8 @@
                 <% } %>
 
                 <div class="note-box">
-                    ⚠️ O toggle Ativo/Inativo abaixo é apenas visual — a tabela <code>usuario</code> ainda não tem uma coluna de status.
-                    "Criado em" e "Eventos" também não existem no schema atual (não há data de criação nem contagem de eventos por usuário).
-                    Se quiser essas funcionalidades de verdade, ajustamos o banco.
+                    ⚠️ O status "Ativo" abaixo é apenas visual — a tabela <code>usuario</code> ainda não tem uma coluna de status real.
+                    Se quiser essa funcionalidade de verdade, ajustamos o banco.
                 </div>
 
                 <div id="form-novo-usuario" class="panel-card" style="display:none; margin-bottom:20px;">
@@ -1018,7 +1004,7 @@
                 <div class="table-wrap">
                     <table class="data-table">
                         <thead>
-                            <tr><th>Usuário</th><th>Tipo</th><th>Criado em</th><th>Eventos</th><th>Status</th><th>Ações</th></tr>
+                            <tr><th>Usuário</th><th>Tipo</th><th>Status</th><th>Ações</th></tr>
                         </thead>
                         <tbody id="corpo-usuarios"></tbody>
                     </table>
@@ -1044,11 +1030,22 @@
         document.getElementById('view-' + viewId).classList.add('active');
         document.querySelectorAll('.sidebar .nav-item').forEach(el => el.classList.remove('active'));
         if (botao) botao.classList.add('active');
+        fecharSidebarMobile();
     }
 
     function mudarViewById(viewId) {
         const nav = document.querySelector('.sidebar .nav-item[data-view="' + viewId + '"]');
         mudarView(viewId, nav);
+    }
+
+    function toggleSidebar() {
+        document.getElementById('sidebarEl').classList.toggle('open');
+        document.getElementById('sidebarOverlay').classList.toggle('open');
+    }
+
+    function fecharSidebarMobile() {
+        document.getElementById('sidebarEl').classList.remove('open');
+        document.getElementById('sidebarOverlay').classList.remove('open');
     }
 
     (function abrirViewInicial() {
@@ -1156,8 +1153,6 @@
                     </div>
                 </td>
                 <td><span class="type-pill \${tipoClasse[u.tipo]}">\${u.tipo}</span></td>
-                <td>—</td>
-                <td>—</td>
                 <td><span class="status-pill">Ativo</span></td>
                 <td>
                     <a href="\${base}?action=redefinirSenha&id=\${u.id}"

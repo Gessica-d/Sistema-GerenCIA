@@ -713,10 +713,54 @@
         font-size: 13px;
     }
 
+    .menu-toggle-btn {
+        display: none;
+        width: 34px; height: 34px;
+        border-radius: 8px;
+        border: 1px solid #E2E8F0;
+        background: #FFFFFF;
+        font-size: 16px;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        flex-shrink: 0;
+    }
+
+    .sidebar-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(2,6,23,0.5);
+        z-index: 40;
+    }
+
+    .sidebar-overlay.open { display: block; }
+
     @media (max-width: 900px) {
-        .two-col { grid-template-columns: 1fr; }
         .app { grid-template-columns: 1fr; }
-        .sidebar { display: none; }
+
+        .sidebar {
+            position: fixed;
+            top: 0; left: 0;
+            height: 100vh;
+            width: 240px;
+            z-index: 50;
+            transform: translateX(-100%);
+            transition: transform 0.25s ease;
+            box-shadow: 0 0 30px rgba(2,6,23,0.25);
+        }
+
+        .sidebar.open { transform: translateX(0); }
+
+        .menu-toggle-btn { display: flex; }
+
+        .two-col { grid-template-columns: 1fr; }
+        .fields-row-2 { grid-template-columns: 1fr; }
+        .content { padding: 16px; }
+    }
+
+    @media (max-width: 480px) {
+        .events-grid { grid-template-columns: 1fr; }
     }
     .modal-overlay {
         display: none; position: fixed; inset: 0; background: rgba(2,6,23,0.55);
@@ -741,7 +785,7 @@
 <div class="app">
 
     <!-- ================= SIDEBAR ================= -->
-    <aside class="sidebar">
+    <aside class="sidebar" id="sidebarEl">
 
         <div class="sidebar-logo">
             <div class="sidebar-logo-icon">📅</div>
@@ -792,10 +836,14 @@
 
     </aside>
 
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
     <!-- ================= ÁREA PRINCIPAL ================= -->
     <div>
 
         <header class="topbar">
+
+            <button class="menu-toggle-btn" onclick="toggleSidebar()">☰</button>
 
             <div class="search-box">
                 🔍
@@ -1240,11 +1288,23 @@
         });
 
         botao.classList.add('active');
+
+        fecharSidebarMobile();
     }
 
     function mudarViewById(viewId) {
         const nav = document.querySelector('.sidebar .nav-item[data-view="' + viewId + '"]');
         mudarView(viewId, nav);
+    }
+
+    function toggleSidebar() {
+        document.getElementById('sidebarEl').classList.toggle('open');
+        document.getElementById('sidebarOverlay').classList.toggle('open');
+    }
+
+    function fecharSidebarMobile() {
+        document.getElementById('sidebarEl').classList.remove('open');
+        document.getElementById('sidebarOverlay').classList.remove('open');
     }
 
     (function abrirViewInicial() {

@@ -638,6 +638,57 @@
     .upload-box a { color: #7C3AED; font-weight: 600; cursor: pointer; }
 
     .empty-state { text-align: center; padding: 40px 20px; color: #94A3B8; font-size: 12px; }
+    .menu-toggle-btn {
+        display: none;
+        width: 34px; height: 34px;
+        border-radius: 8px;
+        border: 1px solid #E2E8F0;
+        background: #FFFFFF;
+        font-size: 16px;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        flex-shrink: 0;
+    }
+
+    .sidebar-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(2,6,23,0.5);
+        z-index: 40;
+    }
+
+    .sidebar-overlay.open { display: block; }
+
+    @media (max-width: 900px) {
+        .app { grid-template-columns: 1fr; }
+
+        .sidebar {
+            position: fixed;
+            top: 0; left: 0;
+            height: 100vh;
+            width: 226px;
+            z-index: 50;
+            transform: translateX(-100%);
+            transition: transform 0.25s ease;
+            box-shadow: 0 0 30px rgba(2,6,23,0.25);
+        }
+
+        .sidebar.open { transform: translateX(0); }
+
+        .menu-toggle-btn { display: flex; }
+
+        .dash-cols { grid-template-columns: 1fr; }
+        .stats-grid { grid-template-columns: repeat(2, 1fr); }
+        .fields-row-2 { grid-template-columns: 1fr; }
+        .detail-grid { grid-template-columns: 1fr; }
+        .content { padding: 14px; }
+    }
+
+    @media (max-width: 480px) {
+        .stats-grid { grid-template-columns: 1fr; }
+    }
 
 </style>
 </head>
@@ -646,7 +697,7 @@
 <div class="app">
 
     <!-- ================= SIDEBAR ================= -->
-    <aside class="sidebar">
+    <aside class="sidebar" id="sidebarEl">
 
         <div class="sidebar-logo">
             <div class="sidebar-logo-icon">📊</div>
@@ -693,10 +744,13 @@
 
     </aside>
 
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
     <!-- ================= COLUNA PRINCIPAL ================= -->
     <div class="main-col">
 
         <header class="topbar">
+            <button class="menu-toggle-btn" onclick="toggleSidebar()">☰</button>
             <div class="topbar-title">
                 <strong>GerenCIA</strong>
                 <span>Painel do Organizador</span>
@@ -1484,13 +1538,13 @@
 
 <!-- ================= MODAL: NOVO FORNECEDOR (standalone) ================= -->
 <div class="modal-overlay" id="modalFornecedor">
-    <div class="modal-box">
+    <div class="modal-box wide">
         <div class="modal-header">
             <h3>Cadastrar fornecedor</h3>
             <button class="modal-close" onclick="fecharModal('modalFornecedor')">×</button>
         </div>
 
-        <form action="${pageContext.request.contextPath}/fornecedorController" method="post">
+        <form action="${pageContext.request.contextPath}/fornecedorController" method="post" enctype="multipart/form-data">
             <input type="hidden" name="action" value="novo">
 
             <div class="field">
@@ -1512,7 +1566,7 @@
             <div class="fields-row-2">
                 <div class="field">
                     <label>Categoria</label>
-                    <select name="categoria_fornecedor">
+                    <select name="categoria_fornecedor" id="fornecedorCategoriaSelect">
                         <option value="audioVisual">Audiovisual</option>
                         <option value="buffet">Buffet</option>
                         <option value="decoracao">Decoração</option>
@@ -1526,6 +1580,74 @@
                     <label>E-mail <span class="req">*</span></label>
                     <input type="email" name="email" required>
                 </div>
+            </div>
+
+            <div class="field" style="border-top:1px solid #F1F5F9; padding-top:14px;">
+                <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                    <input type="checkbox" id="chkVincularContrato" onchange="document.getElementById('boxContratoFornecedor').style.display = this.checked ? 'block' : 'none';">
+                    Já vincular um contrato a um evento existente
+                </label>
+            </div>
+
+            <div id="boxContratoFornecedor" style="display:none; padding:14px; border-radius:10px; background:#FAF5FF; border:1px dashed #C4B5FD; margin-bottom:14px;">
+
+                <div class="field">
+                    <label>Evento <span class="req">*</span></label>
+                    <select name="id_evento_vinculo">
+                        <option value="">Selecione o evento...</option>
+                        <%
+                            for (eventoModel evVinc : meusEventos) {
+                        %>
+                        <option value="<%= evVinc.getId_evento() %>"><%= evVinc.getNome_evento() %></option>
+                        <%
+                            }
+                        %>
+                    </select>
+                    <% if (meusEventos.isEmpty()) { %>
+                    <span class="hint">Você ainda não tem nenhum evento cadastrado.</span>
+                    <% } %>
+                </div>
+
+                <div class="field">
+                    <label>Data do contrato</label>
+                    <input type="date" name="data_contrato_vinculo">
+                </div>
+
+                <div class="fields-row-2">
+                    <div class="field">
+                        <label>Valor adiantamento (R$)</label>
+                        <input type="number" step="0.01" name="valor_pago_vinculo" value="0">
+                    </div>
+                    <div class="field">
+                        <label>Valor total (R$)</label>
+                        <input type="number" step="0.01" name="valor_total_vinculo" value="0">
+                    </div>
+                </div>
+
+                <div class="fields-row-2">
+                    <div class="field">
+                        <label>Nome do responsável</label>
+                        <input type="text" name="responsavel_contrato_vinculo">
+                    </div>
+                    <div class="field">
+                        <label>Contato do responsável</label>
+                        <input type="text" name="contato_responsavel_vinculo">
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label>Objetivo / Escopo do serviço</label>
+                    <textarea name="objeto_contrato_vinculo" rows="2"></textarea>
+                </div>
+
+                <div class="field">
+                    <label>Documento do contrato</label>
+                    <div class="upload-box" style="text-align:left;">
+                        <input type="file" name="arquivo_contrato_vinculo" accept=".pdf,.doc,.docx" style="width:100%;">
+                        <div style="margin-top:6px; font-size:10px; color:#94A3B8;">PDF, DOC, DOCX — até 10MB</div>
+                    </div>
+                </div>
+
             </div>
 
             <div class="modal-footer" style="justify-content:flex-end;">
@@ -1631,12 +1753,23 @@
         document.querySelectorAll('.sidebar .nav-item').forEach(el => el.classList.remove('active'));
         if (botao) botao.classList.add('active');
         document.querySelector('.content').scrollTop = 0;
+        fecharSidebarMobile();
     }
 
     // Alias usado por cliques em cards/gráficos (sem precisar do elemento <button> da sidebar)
     function mudarViewById(viewId) {
         const nav = document.querySelector('.sidebar .nav-item[data-view="' + viewId + '"]');
         mudarView(viewId, nav);
+    }
+
+    function toggleSidebar() {
+        document.getElementById('sidebarEl').classList.toggle('open');
+        document.getElementById('sidebarOverlay').classList.toggle('open');
+    }
+
+    function fecharSidebarMobile() {
+        document.getElementById('sidebarEl').classList.remove('open');
+        document.getElementById('sidebarOverlay').classList.remove('open');
     }
 
     (function abrirViewInicial() {
