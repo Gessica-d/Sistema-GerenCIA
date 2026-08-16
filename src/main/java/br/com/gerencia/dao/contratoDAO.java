@@ -12,12 +12,12 @@ public class contratoDAO {
 
     private Connection conexao;
 
-    // Construtor da conexão 
+    // Construtor da conexão com o BD
     public contratoDAO(Connection conexao) {
         this.conexao = conexao;
     }
 
-    // add contrato
+    // ================= ADICIONAR CONTRATO =================
     public void adicionarContrato(contratoModel contrato) throws Exception {
 
         String sql = "INSERT INTO contrato "
@@ -43,7 +43,7 @@ public class contratoDAO {
         stmt.close();
     }
 
-    // listar contratos
+    // ================= LISTAR CONTRATOS =================
     public List<contratoModel> listarContratos() throws Exception {
 
         List<contratoModel> contratos = new ArrayList<>();
@@ -59,7 +59,7 @@ public class contratoDAO {
                 rs.getInt("id_contrato"),
                 rs.getInt("id_fornecedor"),
                 rs.getInt("id_evento"),
-                rs.getTimestamp("data_contrato").toLocalDateTime(),
+                rs.getObject("data_contrato", java.time.LocalDateTime.class),
                 rs.getDouble("valor_pago"),
                 rs.getDouble("valor_total"),
                 rs.getString("responsavel_contrato"),
@@ -77,7 +77,7 @@ public class contratoDAO {
         return contratos;
     }
 
-    // buscar contratos por id
+    // ================= BUSCAR CONTRATO POR ID =================
     public contratoModel buscarPorId(int idContrato) throws Exception {
 
         String sql = "SELECT * FROM contrato WHERE id_contrato = ?";
@@ -96,7 +96,7 @@ public class contratoDAO {
                 rs.getInt("id_contrato"),
                 rs.getInt("id_fornecedor"),
                 rs.getInt("id_evento"),
-                rs.getTimestamp("data_contrato").toLocalDateTime(),
+                rs.getObject("data_contrato", java.time.LocalDateTime.class),
                 rs.getDouble("valor_pago"),
                 rs.getDouble("valor_total"),
                 rs.getString("responsavel_contrato"),
@@ -112,7 +112,7 @@ public class contratoDAO {
         return contrato;
     }
 
-    // atualizar contratos
+    // ================= ATUALIZAR CONTRATO =================
     public void atualizarContrato(contratoModel contrato) throws Exception {
 
         String sql = "UPDATE contrato SET "
@@ -145,7 +145,7 @@ public class contratoDAO {
         stmt.close();
     }
 
-    // excluir contratos
+    // ================= EXCLUIR CONTRATO =================
     public void excluirContrato(int idContrato) throws Exception {
 
         String sql = "DELETE FROM contrato WHERE id_contrato = ?";

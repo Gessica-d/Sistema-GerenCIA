@@ -1,9 +1,9 @@
 package br.com.gerencia.controller;
 
-import br.com.gerencia.dao.fornecedorDAO;
 import br.com.gerencia.dao.contratoDAO;
-import br.com.gerencia.model.fornecedorModel;
+import br.com.gerencia.dao.fornecedorDAO;
 import br.com.gerencia.model.contratoModel;
+import br.com.gerencia.model.fornecedorModel;
 import br.com.gerencia.utils.Conexao;
 
 import javax.servlet.RequestDispatcher;
@@ -24,13 +24,12 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.sql.Connection;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
 @WebServlet("/fornecedorController")
 @MultipartConfig(
-    maxFileSize = 10 * 1024 * 1024,
+    maxFileSize = 10 * 1024 * 1024,       // 10MB por arquivo
     maxRequestSize = 12 * 1024 * 1024
 )
 public class fornecedorController extends HttpServlet {
@@ -40,16 +39,14 @@ public class fornecedorController extends HttpServlet {
     private fornecedorDAO fornecedorDAO;
     private contratoDAO contratoDAO;
 
-    
+    // ================= INIT =================
     @Override
     public void init() {
 
         try {
 
-            Connection conexao = Conexao.getConnection();
-
-            fornecedorDAO = new fornecedorDAO(conexao);
-            contratoDAO = new contratoDAO(conexao);
+            fornecedorDAO = new fornecedorDAO(Conexao.getConnection());
+            contratoDAO = new contratoDAO(Conexao.getConnection());
 
         } catch (Exception e) {
 
@@ -59,7 +56,58 @@ public class fornecedorController extends HttpServlet {
         }
     }
 
-    // get
+    // =====================================================
+    // SALVAR ARQUIVO DO CONTRATO (upload), usado quando o
+    // fornecedor já é vinculado a um evento no próprio
+    // cadastro do fornecedor.
+    // =====================================================
+    private String salvarArquivoContrato(HttpServletRequest request, String nomeCampo) throws Exception {
+
+        Part filePart = request.getPart(nomeCampo);
+
+        if (filePart == null || filePart.getSize() == 0) {
+            return null;
+        }
+
+        String header = filePart.getHeader("content-disposition");
+        String nomeOriginal = null;
+
+        for (String token : header.split(";")) {
+            if (token.trim().startsWith("filename")) {
+                nomeOriginal = token.substring(token.indexOf('=') + 1).trim().replace("\"", "");
+            }
+        }
+
+        if (nomeOriginal == null || nomeOriginal.isBlank()) {
+            return null;
+        }
+
+        String extensao = "";
+        int pontoIdx = nomeOriginal.lastIndexOf('.');
+        if (pontoIdx >= 0) {
+            extensao = nomeOriginal.substring(pontoIdx);
+        }
+
+        String nomeArmazenado = "ctr_" + System.currentTimeMillis() + extensao;
+
+        String caminhoReal = getServletContext().getRealPath("/uploads/contratos/");
+
+        File pastaDestino = new File(caminhoReal);
+
+        if (!pastaDestino.exists()) {
+            pastaDestino.mkdirs();
+        }
+
+        Path destino = Paths.get(caminhoReal, nomeArmazenado);
+
+        try (InputStream in = filePart.getInputStream()) {
+            Files.copy(in, destino, StandardCopyOption.REPLACE_EXISTING);
+        }
+
+        return "uploads/contratos/" + nomeArmazenado;
+    }
+
+    // ================= GET =================
     @Override
     protected void doGet(HttpServletRequest request,
                          HttpServletResponse response)
@@ -89,7 +137,7 @@ public class fornecedorController extends HttpServlet {
         }
     }
 
-    // post
+    // ================= POST =================
     @Override
     protected void doPost(HttpServletRequest request,
                           HttpServletResponse response)
@@ -130,7 +178,7 @@ public class fornecedorController extends HttpServlet {
         }
     }
 
-    // cadastrar
+    // ================= CADASTRAR =================
     private void cadastrarFornecedor(HttpServletRequest request,
                                      HttpServletResponse response)
             throws Exception {
@@ -150,7 +198,7 @@ public class fornecedorController extends HttpServlet {
         String email =
             request.getParameter("email");
 
-        //validações
+        // ================= VALIDAÇÕES =================
 
         if (nome == null || nome.isBlank()) {
             throw new Exception(
@@ -190,9 +238,14 @@ public class fornecedorController extends HttpServlet {
                 session.setAttribute("flashMsg", "Já existe um fornecedor cadastrado com esse CNPJ.");
             }
 
+            String voltarPara = request.getParameter("voltarPara");
+            String destino = (voltarPara != null && voltarPara.startsWith("/pages/homeOrganizador.jsp"))
+                ? voltarPara
+                : "/pages/homeOrganizador.jsp?view=fornecedores";
+
             response.sendRedirect(
                 request.getContextPath()
-                + "/pages/homeOrganizador.jsp?view=fornecedores"
+                + destino
             );
 
             return;
@@ -209,11 +262,11 @@ public class fornecedorController extends HttpServlet {
 
         int idFornecedorGerado = fornecedorDAO.adicionarFornecedor(fornecedor);
 
-       
-        // CONTRATO OPCIONAL (só se o organizador selecionou
-        // um evento existente pra vincular na mesma tela)
-   
-
+        // =================================================
+        // VÍNCULO OPCIONAL DE CONTRATO A UM EVENTO EXISTENTE
+        // Campos "*_vinculo" só chegam preenchidos se o organizador
+        // marcou "Já vincular um contrato a um evento existente".
+        // =================================================
         String idEventoVinculo = request.getParameter("id_evento_vinculo");
 
         if (idEventoVinculo != null && !idEventoVinculo.isBlank()) {
@@ -221,21 +274,21 @@ public class fornecedorController extends HttpServlet {
             String dataContratoParam = request.getParameter("data_contrato_vinculo");
             String valorPagoParam = request.getParameter("valor_pago_vinculo");
             String valorTotalParam = request.getParameter("valor_total_vinculo");
-            String responsavelContrato = request.getParameter("responsavel_contrato_vinculo");
-            String contatoResponsavel = request.getParameter("contato_responsavel_vinculo");
-            String objetoContrato = request.getParameter("objeto_contrato_vinculo");
+            String responsavel = request.getParameter("responsavel_contrato_vinculo");
+            String contato = request.getParameter("contato_responsavel_vinculo");
+            String objeto = request.getParameter("objeto_contrato_vinculo");
 
-            LocalDateTime dataContrato = (dataContratoParam == null || dataContratoParam.isBlank())
-                ? LocalDateTime.now()
-                : LocalDate.parse(dataContratoParam).atStartOfDay();
+            LocalDateTime dataContrato = (dataContratoParam != null && !dataContratoParam.isBlank())
+                ? LocalDateTime.parse(dataContratoParam + "T00:00:00")
+                : LocalDateTime.now();
 
-            double valorPago = (valorPagoParam == null || valorPagoParam.isBlank())
-                ? 0.0 : Double.parseDouble(valorPagoParam);
+            double valorPago = (valorPagoParam != null && !valorPagoParam.isBlank())
+                ? Double.parseDouble(valorPagoParam) : 0;
 
-            double valorTotal = (valorTotalParam == null || valorTotalParam.isBlank())
-                ? 0.0 : Double.parseDouble(valorTotalParam);
+            double valorTotal = (valorTotalParam != null && !valorTotalParam.isBlank())
+                ? Double.parseDouble(valorTotalParam) : 0;
 
-            String anexoContrato = salvarArquivoContratoVinculo(request);
+            String anexo = salvarArquivoContrato(request, "arquivo_contrato_vinculo");
 
             contratoModel contrato = new contratoModel(
                 idFornecedorGerado,
@@ -243,11 +296,10 @@ public class fornecedorController extends HttpServlet {
                 dataContrato,
                 valorPago,
                 valorTotal,
-                (responsavelContrato == null || responsavelContrato.isBlank()) ? nome : responsavelContrato,
-                contatoResponsavel,
-                (objetoContrato == null || objetoContrato.isBlank())
-                    ? "Serviços de " + categoria : objetoContrato,
-                anexoContrato
+                (responsavel != null && !responsavel.isBlank()) ? responsavel : "Não informado",
+                contato,
+                (objeto != null && !objeto.isBlank()) ? objeto : "Vinculado no cadastro do fornecedor",
+                anexo
             );
 
             contratoDAO.adicionarContrato(contrato);
@@ -255,60 +307,29 @@ public class fornecedorController extends HttpServlet {
 
         response.sendRedirect(
             request.getContextPath()
-            + "/pages/homeOrganizador.jsp"
+            + destinoAposCadastro(request)
         );
     }
 
-  
-    // SAalvar contrato (anexar), quando o contrato
-    // é criado junto do cadastro de fornecedor.
-  
-    private String salvarArquivoContratoVinculo(HttpServletRequest request) throws Exception {
+    // =====================================================
+    // Permite que quem chamou este controller (ex.: o formulário
+    // inline de "Cadastrar fornecedor" dentro da tela de criar
+    // evento) peça para voltar para uma tela específica em vez do
+    // dashboard padrão. Só aceitamos caminhos internos conhecidos,
+    // para não abrir um redirect arbitrário.
+    // =====================================================
+    private String destinoAposCadastro(HttpServletRequest request) {
 
-        Part filePart = request.getPart("arquivo_contrato_vinculo");
+        String voltarPara = request.getParameter("voltarPara");
 
-        if (filePart == null || filePart.getSize() == 0) {
-            return null;
+        if (voltarPara != null && voltarPara.startsWith("/pages/homeOrganizador.jsp")) {
+            return voltarPara;
         }
 
-        String header = filePart.getHeader("content-disposition");
-        String nomeOriginal = null;
-
-        for (String token : header.split(";")) {
-            if (token.trim().startsWith("filename")) {
-                nomeOriginal = token.substring(token.indexOf('=') + 1).trim().replace("\"", "");
-            }
-        }
-
-        if (nomeOriginal == null || nomeOriginal.isBlank()) {
-            return null;
-        }
-
-        String extensao = "";
-        int pontoIdx = nomeOriginal.lastIndexOf('.');
-        if (pontoIdx >= 0) {
-            extensao = nomeOriginal.substring(pontoIdx);
-        }
-
-        String nomeArmazenado = "ctr_" + System.currentTimeMillis() + extensao;
-
-        String caminhoReal = getServletContext().getRealPath("/uploads/contratos/");
-
-        File pastaDestino = new File(caminhoReal);
-        if (!pastaDestino.exists()) {
-            pastaDestino.mkdirs();
-        }
-
-        Path destino = Paths.get(caminhoReal, nomeArmazenado);
-
-        try (InputStream in = filePart.getInputStream()) {
-            Files.copy(in, destino, StandardCopyOption.REPLACE_EXISTING);
-        }
-
-        return "uploads/contratos/" + nomeArmazenado;
+        return "/pages/homeOrganizador.jsp";
     }
 
-    // atualizar
+    // ================= ATUALIZAR =================
     private void atualizarFornecedor(HttpServletRequest request,
                                      HttpServletResponse response)
             throws Exception {
@@ -340,7 +361,7 @@ public class fornecedorController extends HttpServlet {
         String email =
             request.getParameter("email");
 
-        // validações
+        // ================= VALIDAÇÕES =================
 
         if (nome == null || nome.isBlank()) {
             throw new Exception(
@@ -390,7 +411,7 @@ public class fornecedorController extends HttpServlet {
         );
     }
 
-    // buscar por id
+    // ================= BUSCAR POR ID =================
     private void buscarFornecedor(HttpServletRequest request,
                                   HttpServletResponse response)
             throws Exception {
@@ -423,7 +444,7 @@ public class fornecedorController extends HttpServlet {
         dispatcher.forward(request, response);
     }
 
-    // excluir
+    // ================= EXCLUIR =================
     private void excluirFornecedor(HttpServletRequest request,
                                    HttpServletResponse response)
             throws Exception {
@@ -448,7 +469,7 @@ public class fornecedorController extends HttpServlet {
         );
     }
 
-    // listar
+    // ================= LISTAR =================
     private void listarFornecedores(HttpServletRequest request,
                                     HttpServletResponse response)
             throws Exception {

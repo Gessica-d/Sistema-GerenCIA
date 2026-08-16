@@ -10,15 +10,32 @@ import br.com.gerencia.model.eventoModel;
 
 public class eventoDAO {
 
+    // =====================================================
+    // NOTA SOBRE HORÁRIOS (bug corrigido):
+    // A gravação de inicio_evento/fim_evento usa setObject(..., LocalDateTime)
+    // (API JDBC 4.2, "sem fuso horário" — grava o valor literal digitado).
+    // A leitura, antes, usava rs.getTimestamp(...).toLocalDateTime(), que é
+    // uma API legada: internamente ela converte o valor para um instante
+    // (usando o "serverTimezone" da conexão) e depois de volta para
+    // data/hora "de parede" usando o fuso horário padrão da JVM. Quando
+    // esses dois fusos são diferentes, o horário lido fica diferente do
+    // horário realmente cadastrado.
+    // A correção usa rs.getObject(..., LocalDateTime.class) na leitura,
+    // que é a contrapartida "sem fuso horário" do setObject usado na
+    // gravação — o valor vai e volta do banco sem qualquer conversão.
+    // =====================================================
+
     private Connection conexao;
 
-    // Construtor da conexão 
+    // Construtor da conexão com o BD
     public eventoDAO(Connection conexao) {
         this.conexao = conexao;
     }
 
-    // add evento
-  
+    // ================= ADICIONAR EVENTO =================
+    // Retorna o id_evento gerado pelo banco (necessário para, por
+    // exemplo, já vincular um fornecedor/contrato na mesma operação
+    // de criação do evento).
     public int adicionarEvento(eventoModel evento) throws Exception {
 
         String sql = "INSERT INTO evento "
@@ -44,17 +61,19 @@ public class eventoDAO {
         stmt.executeUpdate();
 
         int idGerado = 0;
-        ResultSet keys = stmt.getGeneratedKeys();
-        if (keys.next()) {
-            idGerado = keys.getInt(1);
+
+        ResultSet chaves = stmt.getGeneratedKeys();
+        if (chaves.next()) {
+            idGerado = chaves.getInt(1);
         }
-        keys.close();
+        chaves.close();
+
         stmt.close();
 
         return idGerado;
     }
 
-    // listar eventos
+    // ================= LISTAR EVENTOS =================
     public List<eventoModel> listarEventos() throws Exception {
 
         List<eventoModel> eventos = new ArrayList<>();
@@ -70,8 +89,8 @@ public class eventoDAO {
                 rs.getInt("id_evento"),
                 rs.getString("nome_evento"),
                 rs.getString("tipo_evento"),
-                rs.getTimestamp("inicio_evento").toLocalDateTime(),
-                rs.getTimestamp("fim_evento").toLocalDateTime(),
+                rs.getObject("inicio_evento", java.time.LocalDateTime.class),
+                rs.getObject("fim_evento", java.time.LocalDateTime.class),
                 rs.getString("local_evento"),
                 rs.getInt("capacidade_evento"),
                 rs.getString("codigo_evento"),
@@ -90,7 +109,7 @@ public class eventoDAO {
         return eventos;
     }
 
-    // buscar eventos por id
+    // ================= BUSCAR EVENTO POR ID =================
     public eventoModel buscarPorId(int idEvento) throws Exception {
 
         String sql = "SELECT * FROM evento WHERE id_evento = ?";
@@ -109,8 +128,8 @@ public class eventoDAO {
                 rs.getInt("id_evento"),
                 rs.getString("nome_evento"),
                 rs.getString("tipo_evento"),
-                rs.getTimestamp("inicio_evento").toLocalDateTime(),
-                rs.getTimestamp("fim_evento").toLocalDateTime(),
+                rs.getObject("inicio_evento", java.time.LocalDateTime.class),
+                rs.getObject("fim_evento", java.time.LocalDateTime.class),
                 rs.getString("local_evento"),
                 rs.getInt("capacidade_evento"),
                 rs.getString("codigo_evento"),
@@ -127,7 +146,7 @@ public class eventoDAO {
         return evento;
     }
 
-    // atualizar eventos
+    // ================= ATUALIZAR EVENTO =================
     public void atualizarEvento(eventoModel evento) throws Exception {
 
         String sql = "UPDATE evento SET "
@@ -164,22 +183,7 @@ public class eventoDAO {
         stmt.close();
     }
 
-    // atualizar status
-    public void atualizarStatus(int idEvento, String novoStatus) throws Exception {
-
-        String sql = "UPDATE evento SET status_evento = ? WHERE id_evento = ?";
-
-        PreparedStatement stmt = conexao.prepareStatement(sql);
-
-        stmt.setString(1, novoStatus);
-        stmt.setInt(2, idEvento);
-
-        stmt.executeUpdate();
-
-        stmt.close();
-    }
-
-    // excluir evento
+    // ================= EXCLUIR EVENTO =================
     public void excluirEvento(int idEvento) throws Exception {
 
         String sql = "DELETE FROM evento WHERE id_evento = ?";

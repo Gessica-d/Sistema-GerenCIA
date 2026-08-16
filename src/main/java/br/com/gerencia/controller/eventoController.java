@@ -1,27 +1,44 @@
 package br.com.gerencia.controller;
 
+import br.com.gerencia.dao.contratoDAO;
 import br.com.gerencia.dao.eventoDAO;
+import br.com.gerencia.dao.inscricaoDAO;
+import br.com.gerencia.model.contratoModel;
 import br.com.gerencia.model.eventoModel;
 import br.com.gerencia.utils.Conexao;
 
 import javax.servlet.RequestDispatcher;
 import javax.servlet.ServletException;
+import javax.servlet.annotation.MultipartConfig;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.Part;
 
+import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.sql.Connection;
 import java.time.LocalDateTime;
 import java.util.List;
 
 @WebServlet("/eventoController")
+@MultipartConfig(
+    maxFileSize = 10 * 1024 * 1024,       // 10MB por arquivo
+    maxRequestSize = 12 * 1024 * 1024
+)
 public class eventoController extends HttpServlet {
 
     private static final long serialVersionUID = 1L;
 
     private eventoDAO eventoDAO;
+    private inscricaoDAO inscricaoDAO;
+    private contratoDAO contratoDAO;
 
     // ================= INIT =================
     @Override
@@ -29,9 +46,9 @@ public class eventoController extends HttpServlet {
 
         try {
 
-            Connection conexao = Conexao.getConnection();
-
-            eventoDAO = new eventoDAO(conexao);
+            eventoDAO = new eventoDAO(Conexao.getConnection());
+            inscricaoDAO = new inscricaoDAO(Conexao.getConnection());
+            contratoDAO = new contratoDAO(Conexao.getConnection());
 
         } catch (Exception e) {
 
@@ -39,6 +56,69 @@ public class eventoController extends HttpServlet {
                 "Erro ao iniciar eventoDAO: " + e.getMessage()
             );
         }
+    }
+
+    // =====================================================
+    // Quantidade de pessoas já vinculadas ao evento
+    // (confirmadas + em lista de espera). Usado para travar a
+    // edição de campos sensíveis quando já existe alguém inscrito.
+    // =====================================================
+    private int contarVinculadosAoEvento(int idEvento) throws Exception {
+
+        int confirmados = inscricaoDAO.contarConfirmados(idEvento);
+        int emEspera = inscricaoDAO.listarPorEventoEStatus(idEvento, "Espera").size();
+
+        return confirmados + emEspera;
+    }
+
+    // =====================================================
+    // SALVAR ARQUIVO DO CONTRATO (upload), usado quando um
+    // fornecedor é vinculado já na tela de criação do evento.
+    // =====================================================
+    private String salvarArquivoContrato(HttpServletRequest request, String nomeCampo) throws Exception {
+
+        Part filePart = request.getPart(nomeCampo);
+
+        if (filePart == null || filePart.getSize() == 0) {
+            return null;
+        }
+
+        String header = filePart.getHeader("content-disposition");
+        String nomeOriginal = null;
+
+        for (String token : header.split(";")) {
+            if (token.trim().startsWith("filename")) {
+                nomeOriginal = token.substring(token.indexOf('=') + 1).trim().replace("\"", "");
+            }
+        }
+
+        if (nomeOriginal == null || nomeOriginal.isBlank()) {
+            return null;
+        }
+
+        String extensao = "";
+        int pontoIdx = nomeOriginal.lastIndexOf('.');
+        if (pontoIdx >= 0) {
+            extensao = nomeOriginal.substring(pontoIdx);
+        }
+
+        String nomeArmazenado = "ctr_" + System.currentTimeMillis() + extensao;
+
+        String caminhoReal = getServletContext().getRealPath("/uploads/contratos/");
+
+        File pastaDestino = new File(caminhoReal);
+
+        if (!pastaDestino.exists()) {
+            pastaDestino.mkdirs();
+        }
+
+        Path destino = Paths.get(caminhoReal, nomeArmazenado);
+
+        try (InputStream in = filePart.getInputStream()) {
+            Files.copy(in, destino, StandardCopyOption.REPLACE_EXISTING);
+        }
+
+        return "uploads/contratos/" + nomeArmazenado;
     }
 
     // ================= GET =================
@@ -60,12 +140,6 @@ public class eventoController extends HttpServlet {
             if ("buscar".equals(action)) {
 
                 buscarEvento(request, response);
-                return;
-            }
-
-            if ("publicar".equals(action)) {
-
-                publicarEvento(request, response);
                 return;
             }
 
@@ -202,6 +276,12 @@ public class eventoController extends HttpServlet {
             );
         }
 
+        if (dataInicio.isBefore(LocalDateTime.now())) {
+            throw new Exception(
+                "Não é possível criar um evento com data/horário de início já no passado"
+            );
+        }
+
         int capacidadeEvento =
             Integer.parseInt(capacidade);
 
@@ -226,9 +306,53 @@ public class eventoController extends HttpServlet {
 
         int idEventoGerado = eventoDAO.adicionarEvento(evento);
 
+        // =================================================
+        // VÍNCULO OPCIONAL DE FORNECEDOR JÁ NA CRIAÇÃO
+        // Campos "vinculo_*" só chegam preenchidos se o organizador
+        // abriu o bloco "Vincular fornecedor" no formulário de criar
+        // evento. Se não usou, simplesmente não faz nada aqui.
+        // =================================================
+        String idFornecedorVinculo = request.getParameter("vinculo_id_fornecedor");
+
+        if (idFornecedorVinculo != null && !idFornecedorVinculo.isBlank()) {
+
+            String dataContratoParam = request.getParameter("vinculo_data_contrato");
+            String valorPagoParam = request.getParameter("vinculo_valor_pago");
+            String valorTotalParam = request.getParameter("vinculo_valor_total");
+            String responsavel = request.getParameter("vinculo_responsavel_contrato");
+            String contato = request.getParameter("vinculo_contato_responsavel");
+            String objeto = request.getParameter("vinculo_objeto_contrato");
+
+            LocalDateTime dataContrato = (dataContratoParam != null && !dataContratoParam.isBlank())
+                ? LocalDateTime.parse(dataContratoParam + "T00:00:00")
+                : LocalDateTime.now();
+
+            double valorPago = (valorPagoParam != null && !valorPagoParam.isBlank())
+                ? Double.parseDouble(valorPagoParam) : 0;
+
+            double valorTotal = (valorTotalParam != null && !valorTotalParam.isBlank())
+                ? Double.parseDouble(valorTotalParam) : 0;
+
+            String anexo = salvarArquivoContrato(request, "vinculo_arquivo_contrato");
+
+            contratoModel contrato = new contratoModel(
+                Integer.parseInt(idFornecedorVinculo),
+                idEventoGerado,
+                dataContrato,
+                valorPago,
+                valorTotal,
+                (responsavel != null && !responsavel.isBlank()) ? responsavel : "Não informado",
+                contato,
+                (objeto != null && !objeto.isBlank()) ? objeto : "Vinculado na criação do evento",
+                anexo
+            );
+
+            contratoDAO.adicionarContrato(contrato);
+        }
+
         response.sendRedirect(
             request.getContextPath()
-            + "/pages/homeOrganizador.jsp?view=eventos&abrirEvento=" + idEventoGerado
+            + "/pages/homeOrganizador.jsp?view=eventos"
         );
     }
 
@@ -312,20 +436,66 @@ public class eventoController extends HttpServlet {
             );
         }
 
-        LocalDateTime dataInicio =
-            LocalDateTime.parse(inicio);
+        eventoModel existente = eventoDAO.buscarPorId(idEvento);
 
-        LocalDateTime dataFim =
-            LocalDateTime.parse(fim);
-
-        if (!dataFim.isAfter(dataInicio)) {
-            throw new Exception(
-                "A data de término deve ser posterior à data de início"
-            );
+        if (existente == null) {
+            throw new Exception("Evento não encontrado");
         }
 
-        int capacidade =
-            Integer.parseInt(capacidadeParametro);
+        int vinculados = contarVinculadosAoEvento(idEvento);
+
+        LocalDateTime dataInicio;
+        LocalDateTime dataFim;
+        int capacidade;
+
+        // =================================================
+        // TRAVA DE CAMPOS SENSÍVEIS
+        // Assim que o evento já tem alguém inscrito (confirmado
+        // ou em lista de espera), nome/tipo/datas/local/código/
+        // categoria não podem mais mudar — o servidor ignora
+        // qualquer valor recebido para esses campos e preserva
+        // o que já está salvo. Descrição, status e (com ressalva)
+        // capacidade continuam editáveis, além dos fornecedores/
+        // contratos, que são tratados em outro controller.
+        // =================================================
+        if (vinculados > 0) {
+
+            nome = existente.getNome_evento();
+            tipo = existente.getTipo_evento();
+            local = existente.getLocal_evento();
+            codigo = existente.getCodigo_evento();
+            categoria = existente.getCategoria_evento();
+            dataInicio = existente.getInicio_evento();
+            dataFim = existente.getFim_evento();
+
+            capacidade = Integer.parseInt(capacidadeParametro);
+
+            if (capacidade < vinculados) {
+                throw new Exception(
+                    "A capacidade não pode ser menor que o número de "
+                    + "pessoas já inscritas/na fila (" + vinculados + ")"
+                );
+            }
+
+        } else {
+
+            dataInicio = LocalDateTime.parse(inicio);
+            dataFim = LocalDateTime.parse(fim);
+
+            if (!dataFim.isAfter(dataInicio)) {
+                throw new Exception(
+                    "A data de término deve ser posterior à data de início"
+                );
+            }
+
+            if (dataInicio.isBefore(LocalDateTime.now())) {
+                throw new Exception(
+                    "Não é possível deixar o evento com data/horário de início já no passado"
+                );
+            }
+
+            capacidade = Integer.parseInt(capacidadeParametro);
+        }
 
         int idOrganizador =
             Integer.parseInt(idOrganizadorParametro);
@@ -351,7 +521,7 @@ public class eventoController extends HttpServlet {
 
         response.sendRedirect(
             request.getContextPath()
-            + "/pages/homeOrganizador.jsp"
+            + "/pages/homeOrganizador.jsp?view=eventos"
         );
     }
 
@@ -416,28 +586,7 @@ public class eventoController extends HttpServlet {
 
         response.sendRedirect(
             request.getContextPath()
-            + "/pages/homeOrganizador.jsp"
-        );
-    }
-
-    // ================= PUBLICAR (rascunho -> ativo) =================
-    private void publicarEvento(HttpServletRequest request,
-                                HttpServletResponse response)
-            throws Exception {
-
-        String idParametro = request.getParameter("id");
-
-        if (idParametro == null || idParametro.isBlank()) {
-            throw new Exception("ID do evento não informado");
-        }
-
-        int idEvento = Integer.parseInt(idParametro);
-
-        eventoDAO.atualizarStatus(idEvento, "ativo");
-
-        response.sendRedirect(
-            request.getContextPath()
-            + "/pages/homeOrganizador.jsp?view=eventos&abrirEvento=" + idEvento
+            + "/pages/homeOrganizador.jsp?view=eventos"
         );
     }
 

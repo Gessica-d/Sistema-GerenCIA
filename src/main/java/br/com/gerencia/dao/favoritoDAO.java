@@ -12,12 +12,12 @@ public class favoritoDAO {
 
     private Connection conexao;
 
-    // Construtor da conexão 
+    // Construtor da conexão com o BD
     public favoritoDAO(Connection conexao) {
         this.conexao = conexao;
     }
 
-    // add favorito
+    // ================= ADICIONAR FAVORITO =================
     public void adicionarFavorito(favoritoModel favorito) throws Exception {
 
         String sql = "INSERT INTO favorito "
@@ -35,7 +35,7 @@ public class favoritoDAO {
         stmt.close();
     }
 
-    // listar favoritos
+    // ================= LISTAR FAVORITOS =================
     public List<favoritoModel> listarFavoritos() throws Exception {
 
         List<favoritoModel> favoritos = new ArrayList<>();
@@ -50,7 +50,7 @@ public class favoritoDAO {
             favoritoModel favorito = new favoritoModel(
                 rs.getInt("id_usuario"),
                 rs.getInt("id_evento"),
-                rs.getTimestamp("data_favorito").toLocalDateTime()
+                rs.getObject("data_favorito", java.time.LocalDateTime.class)
             );
 
             favoritos.add(favorito);
@@ -62,7 +62,7 @@ public class favoritoDAO {
         return favoritos;
     }
 
-    // buscar favoritos
+    // ================= BUSCAR FAVORITO =================
     public favoritoModel buscarFavorito(int idUsuario, int idEvento) throws Exception {
 
         String sql = "SELECT * FROM favorito "
@@ -82,7 +82,7 @@ public class favoritoDAO {
             favorito = new favoritoModel(
                 rs.getInt("id_usuario"),
                 rs.getInt("id_evento"),
-                rs.getTimestamp("data_favorito").toLocalDateTime()
+                rs.getObject("data_favorito", java.time.LocalDateTime.class)
             );
         }
 
@@ -92,7 +92,7 @@ public class favoritoDAO {
         return favorito;
     }
 
-    // excluir favoritos
+    // ================= EXCLUIR FAVORITO =================
     public void excluirFavorito(int idUsuario, int idEvento) throws Exception {
 
         String sql = "DELETE FROM favorito "

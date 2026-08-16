@@ -12,13 +12,14 @@ public class fornecedorDAO {
 
     private Connection conexao;
 
-    // Construtor da conexão 
+    // Construtor da conexão com o BD
     public fornecedorDAO(Connection conexao) {
         this.conexao = conexao;
     }
 
-    // add fornecedor
-   
+    // ================= ADICIONAR FORNECEDOR =================
+    // Retorna o id_fornecedor gerado (necessário para já vincular um
+    // contrato a um evento no mesmo cadastro do fornecedor).
     public int adicionarFornecedor(fornecedorModel fornecedor) throws Exception {
 
         String sql = "INSERT INTO fornecedor "
@@ -37,17 +38,19 @@ public class fornecedorDAO {
         stmt.executeUpdate();
 
         int idGerado = 0;
-        ResultSet keys = stmt.getGeneratedKeys();
-        if (keys.next()) {
-            idGerado = keys.getInt(1);
+
+        ResultSet chaves = stmt.getGeneratedKeys();
+        if (chaves.next()) {
+            idGerado = chaves.getInt(1);
         }
-        keys.close();
+        chaves.close();
+
         stmt.close();
 
         return idGerado;
     }
 
-    // listar fornecedores
+    // ================= LISTAR FORNECEDORES =================
     public List<fornecedorModel> listarFornecedores() throws Exception {
 
         List<fornecedorModel> fornecedores = new ArrayList<>();
@@ -77,7 +80,7 @@ public class fornecedorDAO {
         return fornecedores;
     }
 
-    // buscar fornecedores por id
+    // ================= BUSCAR FORNECEDOR POR ID =================
     public fornecedorModel buscarPorId(int idFornecedor) throws Exception {
 
         String sql = "SELECT * FROM fornecedor WHERE id_fornecedor = ?";
@@ -108,7 +111,7 @@ public class fornecedorDAO {
         return fornecedor;
     }
 
-    // buscar fornecedor por cnpj nao repete
+    // ================= BUSCAR FORNECEDOR POR CNPJ (checagem de duplicidade) =================
     public fornecedorModel buscarPorCNPJ(String cnpj) throws Exception {
 
         String sql = "SELECT * FROM fornecedor WHERE CNPJ_fornecedor = ?";
@@ -139,7 +142,7 @@ public class fornecedorDAO {
         return fornecedor;
     }
 
-    // atualizar fornecedor
+    // ================= ATUALIZAR FORNECEDOR =================
     public void atualizarFornecedor(fornecedorModel fornecedor) throws Exception {
 
         String sql = "UPDATE fornecedor SET "
@@ -164,7 +167,7 @@ public class fornecedorDAO {
         stmt.close();
     }
 
-    // excluir fornecedor
+    // ================= EXCLUIR FORNECEDOR =================
     public void excluirFornecedor(int idFornecedor) throws Exception {
 
         String sql = "DELETE FROM fornecedor WHERE id_fornecedor = ?";

@@ -20,7 +20,6 @@ import javax.servlet.http.HttpSession;
 import java.io.IOException;
 import java.sql.Connection;
 import java.time.LocalDateTime;
-import java.util.List;
 
 @WebServlet("/inscricaoController")
 public class inscricaoController extends HttpServlet {
@@ -248,9 +247,16 @@ public class inscricaoController extends HttpServlet {
 
         inscricaoDAO.adicionarInscricao(inscricao);
 
+        // ================= REDIRECT =================
+        // Antes redirecionava para "/inscricaoController?action=listar",
+        // que cai em listarInscricoes() -> forward para
+        // "/pages/listaInscricoes.jsp", um JSP que não existe neste
+        // projeto (daí o 404 "JSP file not found" mesmo com a
+        // inscrição já salva no banco). Agora volta para a mesma tela
+        // de onde o usuário se inscreveu, na aba "Meus Eventos".
         response.sendRedirect(
             request.getContextPath()
-            + "/inscricaoController?action=listar"
+            + "/pages/home.jsp?view=meus-eventos"
         );
     }
 
@@ -377,9 +383,11 @@ public class inscricaoController extends HttpServlet {
 
         inscricaoDAO.atualizarInscricao(inscricao);
 
+        // Mesmo problema do cadastro: "action=listar" caía num JSP
+        // inexistente. Redireciona para uma tela real do sistema.
         response.sendRedirect(
             request.getContextPath()
-            + "/inscricaoController?action=listar"
+            + "/pages/home.jsp?view=meus-eventos"
         );
     }
 
@@ -444,9 +452,11 @@ public class inscricaoController extends HttpServlet {
 
         inscricaoDAO.excluirInscricao(idInscricao);
 
+        // Mesmo problema do cadastro: "action=listar" caía num JSP
+        // inexistente. Redireciona para uma tela real do sistema.
         response.sendRedirect(
             request.getContextPath()
-            + "/inscricaoController?action=listar"
+            + "/pages/home.jsp?view=meus-eventos"
         );
     }
 
@@ -631,24 +641,21 @@ public class inscricaoController extends HttpServlet {
         response.sendRedirect(request.getContextPath() + destino + query);
     }
 
-    // ================= LISTAR =================
+    // =====================================================
+    // LISTAR (fallback quando nenhuma action reconhecida é
+    // informada). Antes tentava encaminhar para
+    // "/pages/listaInscricoes.jsp", um JSP que não existe neste
+    // projeto — a listagem de inscrições do usuário já é feita
+    // dentro de home.jsp (aba "Meus Eventos"), então simplesmente
+    // mandamos para lá em vez de gerar um 404.
+    // =====================================================
     private void listarInscricoes(HttpServletRequest request,
                                   HttpServletResponse response)
             throws Exception {
 
-        List<inscricaoModel> lista =
-            inscricaoDAO.listarInscricoes();
-
-        request.setAttribute(
-            "listaInscricoes",
-            lista
+        response.sendRedirect(
+            request.getContextPath()
+            + "/pages/home.jsp?view=meus-eventos"
         );
-
-        RequestDispatcher dispatcher =
-            request.getRequestDispatcher(
-                "/pages/listaInscricoes.jsp"
-            );
-
-        dispatcher.forward(request, response);
     }
 }

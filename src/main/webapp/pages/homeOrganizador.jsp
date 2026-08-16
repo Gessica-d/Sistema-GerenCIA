@@ -17,6 +17,15 @@
 <%@ page import="java.util.HashMap"%>
 <%@ page import="java.time.format.DateTimeFormatter"%>
 <%
+    // ================= SEM CACHE =================
+    // Evita que o navegador reaproveise uma cópia antiga desta página
+    // (ex.: logo após criar um evento, o redirect volta para esta mesma
+    // URL — sem isso, alguns navegadores reexibem a versão em cache,
+    // sem o evento novo, até o usuário fazer login novamente / dar reload).
+    response.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    response.setHeader("Pragma", "no-cache");
+    response.setDateHeader("Expires", 0);
+
     // ================= GUARDA DE SESSÃO =================
     usuarioModel usuarioLogado = (usuarioModel) session.getAttribute("usuarioLogado");
 
@@ -94,7 +103,7 @@
 <%!
     private String js(String s) {
         if (s == null) return "";
-        return s.replace("\\", "\\\\").replace("'", "\\'").replace("\r", " ").replace("\n", " ").replace("</", "<\\/");
+        return s.replace("\\", "\\\\").replace("'", "\\'").replace("\r", " ").replace("\n", " ");
     }
     private String rotuloTipoConta(String tipo) {
         if ("organizador".equals(tipo)) return "Organizador";
@@ -180,6 +189,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>GerenCIA - Painel do Organizador</title>
 
+<!-- Ajuste automático de proporções para qualquer tamanho de tela -->
+<script src="${pageContext.request.contextPath}/js/responsivo.js"></script>
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -207,8 +219,7 @@
     .app {
         display: grid;
         grid-template-columns: 226px 1fr;
-        height: 100vh;
-        min-width: 0;
+        height: calc(var(--vh, 1vh) * 100);
     }
 
     .sidebar {
@@ -217,7 +228,7 @@
         display: flex;
         flex-direction: column;
         padding: 16px 12px;
-        height: 100vh;
+        height: calc(var(--vh, 1vh) * 100);
         overflow-y: auto;
     }
 
@@ -312,9 +323,8 @@
     .main-col {
         display: flex;
         flex-direction: column;
-        height: 100vh;
+        height: calc(var(--vh, 1vh) * 100);
         overflow: hidden;
-        min-width: 0;
     }
 
     .topbar {
@@ -580,6 +590,7 @@
     .fields-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 
     .toggle-group { display: flex; gap: 8px; }
+    .campo-bloqueado { pointer-events: none; opacity: 0.55; filter: grayscale(0.25); }
     .toggle-btn {
         flex: 1; padding: 9px; border-radius: 8px; border: 1.5px solid #E2E8F0; background: #FFFFFF;
         font-size: 12px; font-weight: 600; color: #64748B; text-align: center;
@@ -669,7 +680,7 @@
         .sidebar {
             position: fixed;
             top: 0; left: 0;
-            height: 100vh;
+            height: calc(var(--vh, 1vh) * 100);
             width: 226px;
             z-index: 50;
             transform: translateX(-100%);
@@ -957,7 +968,7 @@
                     </div>
                     <div class="header-actions">
                         <button class="btn-outline" onclick="exportarPDF('eventos')">⬇ Exportar</button>
-                        <button class="btn-solid" onclick="mudarViewById('criarEvento')">+ Criar evento</button>
+                        <button class="btn-solid" onclick="abrirCriacaoEvento()">+ Criar evento</button>
                     </div>
                 </div>
 
@@ -974,43 +985,58 @@
             </section>
 
             <!-- ============================================================
-                 VIEW: CRIAR EVENTO
+                 VIEW: CRIAR / EDITAR EVENTO
             ============================================================ -->
             <section class="view-section" id="view-criarEvento">
 
                 <div class="back-link" onclick="mudarViewById('eventos')">← Voltar</div>
 
                 <div class="view-header">
-                    <div><h1>Criar evento</h1></div>
+                    <div><h1 id="tituloFormEvento">Criar evento</h1></div>
                 </div>
 
                 <div class="form-card">
 
                     <div class="form-footer" style="margin-bottom:18px;">
-                        <div style="font-weight:700; font-size:14px;">Criar novo evento</div>
+                        <div style="font-weight:700; font-size:14px;" id="subtituloFormEvento">Criar novo evento</div>
                         <div style="display:flex; gap:8px;">
                             <button type="button" class="btn-outline" onclick="mudarViewById('eventos')">Cancelar</button>
-                            <button type="submit" form="formCriarEvento" class="btn-solid">💾 Salvar como rascunho</button>
+                            <button type="button" class="btn-outline" id="btnSalvarRascunho"
+                                    onclick="enviarFormEvento('rascunho')">💾 Salvar como rascunho</button>
+                            <button type="button" class="btn-solid" id="btnPublicarEvento"
+                                    onclick="enviarFormEvento('ativo')">🚀 Publicar</button>
                         </div>
                     </div>
 
-                    <form id="formCriarEvento" action="${pageContext.request.contextPath}/eventoController" method="post" onsubmit="return prepararSubmitEvento();">
+                    <div id="avisoDataPassada" class="hint" style="display:none; background:#FEF2F2; border:1px solid #FECACA; color:#991B1B; padding:10px 14px; border-radius:9px; margin-bottom:14px; font-weight:600;">
+                        ⚠️ Não é possível criar um evento com data/horário de início já no passado. Escolha uma data futura.
+                    </div>
 
-                        <input type="hidden" name="action" value="novo">
+                    <div id="avisoEdicaoBloqueada" class="hint" style="display:none; background:#FFF7ED; border:1px solid #FED7AA; color:#9A3412; padding:10px 14px; border-radius:9px; margin-bottom:14px;">
+                        ⚠️ Este evento já tem inscritos/pessoas na lista de espera. Nome, tipo, datas, local, código e categoria não podem mais ser alterados — apenas descrição, status e capacidade (nunca abaixo do nº de já inscritos). Fornecedores continuam podendo ser vinculados ou removidos normalmente.
+                    </div>
+
+                    <p class="hint" style="margin-bottom:14px;">Campos com <span class="req">*</span> são obrigatórios.</p>
+
+                    <form id="formCriarEvento" action="${pageContext.request.contextPath}/eventoController" method="post"
+                          enctype="multipart/form-data" onsubmit="return false;">
+
+                        <input type="hidden" name="action" id="acaoFormEvento" value="novo">
+                        <input type="hidden" name="id_evento" id="id_evento_input" value="">
                         <input type="hidden" name="id_organizador" value="<%= usuarioLogado.getId_usuario() %>">
-                        <input type="hidden" name="status_evento" value="rascunho">
+                        <input type="hidden" name="status_evento" id="status_evento_hidden" value="rascunho">
                         <input type="hidden" name="inicio_evento" id="inicio_evento_hidden">
                         <input type="hidden" name="fim_evento" id="fim_evento_hidden">
 
                         <div class="field">
                             <label>Nome do evento <span class="req">*</span></label>
-                            <input type="text" name="nome_evento" placeholder="Ex: Summit de Tecnologia 2025" required>
+                            <input type="text" name="nome_evento" id="nome_evento_input" placeholder="Ex: Summit de Tecnologia 2025" required>
                         </div>
 
                         <div class="fields-row-2">
                             <div class="field">
-                                <label>Tipo de evento</label>
-                                <div class="toggle-group">
+                                <label>Tipo de evento <span class="req">*</span></label>
+                                <div class="toggle-group" id="grupoTipoEvento">
                                     <label class="toggle-btn active" id="lbl_tipo_publico">
                                         <input type="radio" name="tipo_evento" value="publico" checked style="display:none" onclick="selecionarToggle('lbl_tipo_publico','lbl_tipo_privado')"> 🌐 Público
                                     </label>
@@ -1020,8 +1046,8 @@
                                 </div>
                             </div>
                             <div class="field">
-                                <label>Categoria</label>
-                                <select name="categoria_evento">
+                                <label>Categoria <span class="req">*</span></label>
+                                <select name="categoria_evento" id="categoria_evento_input" required>
                                     <option value="tecCientifico">TecCientifico</option>
                                     <option value="corporativos">Corporativos</option>
                                     <option value="sociais">Sociais</option>
@@ -1035,56 +1061,174 @@
                                 <input type="date" id="data_inicio_input" required>
                             </div>
                             <div class="field">
-                                <label>Data de término</label>
-                                <input type="date" id="data_fim_input">
+                                <label>Data de término <span class="req">*</span></label>
+                                <input type="date" id="data_fim_input" required>
                             </div>
                         </div>
 
                         <div class="fields-row-2">
                             <div class="field">
-                                <label>Horário de início</label>
-                                <input type="time" id="hora_inicio_input" value="09:00">
+                                <label>Horário de início <span class="req">*</span></label>
+                                <input type="time" id="hora_inicio_input" value="09:00" required>
                             </div>
                             <div class="field">
-                                <label>Horário de término</label>
-                                <input type="time" id="hora_fim_input" value="18:00">
+                                <label>Horário de término <span class="req">*</span></label>
+                                <input type="time" id="hora_fim_input" value="18:00" required>
                             </div>
                         </div>
 
                         <div class="field">
                             <label>Local <span class="req">*</span></label>
-                            <input type="text" name="local_evento" placeholder="Ex: Expo Center Norte, São Paulo" required>
+                            <input type="text" name="local_evento" id="local_evento_input" placeholder="Ex: Expo Center Norte, São Paulo" required>
                         </div>
 
                         <div class="fields-row-2">
                             <div class="field">
                                 <label>Capacidade máxima <span class="req">*</span></label>
-                                <input type="number" name="capacidade_evento" min="1" placeholder="200" required>
+                                <input type="number" name="capacidade_evento" id="capacidade_evento_input" min="1" placeholder="200" required>
                             </div>
                             <div class="field">
-                                <label>Código do evento</label>
+                                <label>Código do evento <span class="req">*</span></label>
                                 <div style="display:flex; gap:8px;">
-                                    <input type="text" name="codigo_evento" id="codigo_evento_input" readonly>
-                                    <button type="button" class="icon-btn" onclick="gerarCodigoEvento()" style="width:38px;height:38px;">🔄</button>
+                                    <input type="text" name="codigo_evento" id="codigo_evento_input" readonly required>
+                                    <button type="button" class="icon-btn" id="btnGerarCodigo" onclick="gerarCodigoEvento()" style="width:38px;height:38px;">🔄</button>
                                 </div>
                             </div>
                         </div>
 
                         <div class="field">
                             <label>Descrição</label>
-                            <textarea name="descricao_evento" rows="3" placeholder="Descreva o evento..."></textarea>
+                            <textarea name="descricao_evento" id="descricao_evento_input" rows="3" placeholder="Descreva o evento..."></textarea>
+                        </div>
+
+                        <div class="field" id="blocoVincularFornecedorCriacao">
+                            <label>Vincular fornecedor a este evento <span class="hint">opcional — pode ser feito agora ou depois, na tela de detalhes do evento</span></label>
+                            <button type="button" class="btn-outline" onclick="document.getElementById('inlineVinculoFornecedor').classList.toggle('open')">+ Vincular fornecedor</button>
+
+                            <div class="inline-fornecedor-box" id="inlineVinculoFornecedor">
+                                <h4>Vincular fornecedor</h4>
+
+                                <div class="field">
+                                    <label>Fornecedor</label>
+                                    <select name="vinculo_id_fornecedor">
+                                        <option value="">Nenhum</option>
+                                        <%
+                                            for (fornecedorModel f : todosFornecedores) {
+                                        %>
+                                        <option value="<%= f.getId_fornecedor() %>"><%= f.getNome_fornecedor() %></option>
+                                        <%
+                                            }
+                                        %>
+                                    </select>
+                                    <% if (todosFornecedores.isEmpty()) { %>
+                                    <span class="hint">Nenhum fornecedor cadastrado ainda — cadastre um abaixo primeiro.</span>
+                                    <% } %>
+                                </div>
+
+                                <div class="field">
+                                    <label>Data do contrato</label>
+                                    <input type="date" name="vinculo_data_contrato">
+                                </div>
+
+                                <div class="fields-row-2">
+                                    <div class="field">
+                                        <label>Valor adiantamento (R$)</label>
+                                        <input type="number" step="0.01" name="vinculo_valor_pago" value="0">
+                                    </div>
+                                    <div class="field">
+                                        <label>Valor total (R$)</label>
+                                        <input type="number" step="0.01" name="vinculo_valor_total" value="0">
+                                    </div>
+                                </div>
+
+                                <div class="fields-row-2">
+                                    <div class="field">
+                                        <label>Nome do responsável</label>
+                                        <input type="text" name="vinculo_responsavel_contrato">
+                                    </div>
+                                    <div class="field">
+                                        <label>Contato do responsável</label>
+                                        <input type="text" name="vinculo_contato_responsavel">
+                                    </div>
+                                </div>
+
+                                <div class="field">
+                                    <label>Objetivo / Escopo do serviço</label>
+                                    <textarea name="vinculo_objeto_contrato" rows="2"></textarea>
+                                </div>
+
+                                <div class="field">
+                                    <label>Documento do contrato</label>
+                                    <div class="upload-box" style="text-align:left;">
+                                        <input type="file" name="vinculo_arquivo_contrato" accept=".pdf,.doc,.docx" style="width:100%;">
+                                        <div style="margin-top:6px; font-size:10px; color:#94A3B8;">PDF, DOC, DOCX — até 10MB</div>
+                                    </div>
+                                </div>
+
+                                <button type="button" class="btn-outline" onclick="document.getElementById('inlineVinculoFornecedor').classList.remove('open')">Fechar</button>
+                            </div>
+                        </div>
+
+                        <div class="field" id="blocoFornecedoresEmEdicao" style="display:none;">
+                            <label>Fornecedores vinculados</label>
+                            <p class="hint">Para vincular, remover ou editar fornecedores deste evento, use a tela de <strong>Detalhes do evento</strong>.</p>
+                            <button type="button" class="btn-outline" id="btnIrParaDetalhesFornecedores">🚚 Gerenciar fornecedores deste evento</button>
                         </div>
 
                     </form>
 
-                    <div style="background:#EFF6FF; border:1px solid #BFDBFE; border-radius:10px; padding:12px 14px; font-size:12px; color:#1D4ED8;">
-                        ℹ️ Depois de salvar, você será levado direto pros detalhes do evento — é lá que você vincula fornecedores
-                        (com contrato e anexo de documento) e publica o evento.
+                    <div class="field">
+                        <label>Cadastrar um novo fornecedor <span class="hint">fica disponível para vincular a qualquer evento, inclusive este</span></label>
+                        <button type="button" class="btn-outline" onclick="document.getElementById('inlineFornecedorBox').classList.toggle('open')">+ Cadastrar Novo Fornecedor</button>
+
+                        <div class="inline-fornecedor-box" id="inlineFornecedorBox">
+                            <h4>Novo fornecedor</h4>
+                            <form id="formFornecedorInline" action="${pageContext.request.contextPath}/fornecedorController" method="post"
+                                  onsubmit="return prepararSubmitFornecedorInline();">
+                                <input type="hidden" name="action" value="novo">
+                                <input type="hidden" name="voltarPara" id="fornecedorInlineVoltarPara" value="">
+                                <div class="fields-row-2">
+                                    <div class="field">
+                                        <label>Nome <span class="req">*</span></label>
+                                        <input type="text" name="nome_fornecedor" id="fornecedorInlineNome" required>
+                                    </div>
+                                    <div class="field">
+                                        <label>CNPJ <span class="req">*</span></label>
+                                        <input type="text" name="CNPJ_fornecedor" maxlength="14" required>
+                                    </div>
+                                </div>
+                                <div class="fields-row-2">
+                                    <div class="field">
+                                        <label>Telefone <span class="req">*</span></label>
+                                        <input type="text" name="telefone_fornecedor" maxlength="11" required>
+                                    </div>
+                                    <div class="field">
+                                        <label>Categoria <span class="req">*</span></label>
+                                        <select name="categoria_fornecedor" required>
+                                            <option value="audioVisual">Audiovisual</option>
+                                            <option value="buffet">Buffet</option>
+                                            <option value="decoracao">Decoração</option>
+                                            <option value="fotografia">Fotografia</option>
+                                            <option value="seguranca">Segurança</option>
+                                            <option value="limpeza">Limpeza</option>
+                                            <option value="locaoEspaco">Locação de Espaço</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="field">
+                                    <label>E-mail <span class="req">*</span></label>
+                                    <input type="email" name="email" required>
+                                </div>
+                                <button type="submit" class="btn-solid">Cadastrar fornecedor</button>
+                                <button type="button" class="btn-outline" onclick="document.getElementById('inlineFornecedorBox').classList.remove('open')">Cancelar</button>
+                            </form>
+                        </div>
                     </div>
 
                 </div>
 
             </section>
+
 
             <!-- ============================================================
                  VIEW: DETALHES DO EVENTO
@@ -1097,8 +1241,8 @@
                     <div><h1 id="det_ev_nome">—</h1></div>
                     <div class="header-actions">
                         <span class="status-pill" id="det_ev_status">Ativo</span>
-                        <a class="btn-solid" id="det_ev_publicar_btn" style="display:none;" href="#"
-                           onclick="return confirm('Publicar este evento? Ele ficará visível/ativo pros participantes.');">🚀 Publicar evento</a>
+                        <button class="btn-solid" id="btnPublicarDetalhe" style="display:none;" onclick="publicarRascunho(currentEventoId)">🚀 Publicar</button>
+                        <button class="btn-outline" onclick="abrirEdicaoEvento(currentEventoId)">✎ Editar</button>
                         <button class="btn-outline" onclick="exportarPDF('detalheEvento')">⬇ Exportar</button>
                     </div>
                 </div>
@@ -1405,10 +1549,12 @@
             <input type="hidden" name="data_contrato" id="contratoDataHidden">
             <input type="hidden" name="anexo_contrato_atual" id="contratoAnexoAtual" value="">
 
+            <p class="hint" style="margin-bottom:14px;">Campos com <span class="req">*</span> são obrigatórios.</p>
+
             <div class="fields-row-2">
                 <div class="field">
-                    <label>Fornecedor</label>
-                    <select id="contratoFornecedorSelect" onchange="document.getElementById('contratoIdFornecedor').value=this.value;">
+                    <label>Fornecedor <span class="req">*</span></label>
+                    <select id="contratoFornecedorSelect" required onchange="document.getElementById('contratoIdFornecedor').value=this.value;">
                         <option value="">Selecione...</option>
                         <%
                             for (fornecedorModel f : todosFornecedores) {
@@ -1420,8 +1566,8 @@
                     </select>
                 </div>
                 <div class="field">
-                    <label>Evento</label>
-                    <select id="contratoEventoSelect" onchange="document.getElementById('contratoIdEvento').value=this.value;">
+                    <label>Evento <span class="req">*</span></label>
+                    <select id="contratoEventoSelect" required onchange="document.getElementById('contratoIdEvento').value=this.value;">
                         <option value="">Selecione...</option>
                         <%
                             for (eventoModel ev : meusEventos) {
@@ -1435,24 +1581,24 @@
             </div>
 
             <div class="field">
-                <label>Data do contrato</label>
+                <label>Data do contrato <span class="req">*</span></label>
                 <input type="date" id="contratoData" required>
             </div>
 
             <div class="fields-row-2">
                 <div class="field">
-                    <label>Valor adiantamento (R$)</label>
-                    <input type="number" step="0.01" name="valor_pago" id="contratoValorPago" value="0">
+                    <label>Valor adiantamento (R$) <span class="req">*</span></label>
+                    <input type="number" step="0.01" name="valor_pago" id="contratoValorPago" value="0" required>
                 </div>
                 <div class="field">
-                    <label>Valor total (R$)</label>
+                    <label>Valor total (R$) <span class="req">*</span></label>
                     <input type="number" step="0.01" name="valor_total" id="contratoValorTotal" value="0" required>
                 </div>
             </div>
 
             <div class="fields-row-2">
                 <div class="field">
-                    <label>Nome do responsável</label>
+                    <label>Nome do responsável <span class="req">*</span></label>
                     <input type="text" name="responsavel_contrato" id="contratoResponsavel" required>
                 </div>
                 <div class="field">
@@ -1462,7 +1608,7 @@
             </div>
 
             <div class="field">
-                <label>Objetivo / Escopo do serviço</label>
+                <label>Objetivo / Escopo do serviço <span class="req">*</span></label>
                 <textarea name="objeto_contrato" id="contratoObjeto" rows="3" required></textarea>
             </div>
 
@@ -1498,6 +1644,8 @@
         <form action="${pageContext.request.contextPath}/fornecedorController" method="post" enctype="multipart/form-data">
             <input type="hidden" name="action" value="novo">
 
+            <p class="hint" style="margin-bottom:14px;">Campos com <span class="req">*</span> são obrigatórios.</p>
+
             <div class="field">
                 <label>Nome <span class="req">*</span></label>
                 <input type="text" name="nome_fornecedor" required>
@@ -1505,19 +1653,19 @@
 
             <div class="fields-row-2">
                 <div class="field">
-                    <label>CNPJ</label>
-                    <input type="text" name="CNPJ_fornecedor" maxlength="14" placeholder="00000000000100">
+                    <label>CNPJ <span class="req">*</span></label>
+                    <input type="text" name="CNPJ_fornecedor" maxlength="14" placeholder="00000000000100" required>
                 </div>
                 <div class="field">
-                    <label>Telefone</label>
-                    <input type="text" name="telefone_fornecedor" maxlength="11" placeholder="11999999999">
+                    <label>Telefone <span class="req">*</span></label>
+                    <input type="text" name="telefone_fornecedor" maxlength="11" placeholder="11999999999" required>
                 </div>
             </div>
 
             <div class="fields-row-2">
                 <div class="field">
-                    <label>Categoria</label>
-                    <select name="categoria_fornecedor" id="fornecedorCategoriaSelect">
+                    <label>Categoria <span class="req">*</span></label>
+                    <select name="categoria_fornecedor" id="fornecedorCategoriaSelect" required>
                         <option value="audioVisual">Audiovisual</option>
                         <option value="buffet">Buffet</option>
                         <option value="decoracao">Decoração</option>
@@ -1629,12 +1777,18 @@
             statusLabel: '<%= rotuloStatusEvento(ev.getStatus_evento()) %>',
             tipo: '<%= ev.getTipo_evento() %>',
             categoria: '<%= rotuloCategoria(ev.getCategoria_evento()) %>',
+            categoriaValue: '<%= ev.getCategoria_evento() %>',
             local: '<%= js(ev.getLocal_evento()) %>',
             inicio: '<%= ev.getInicio_evento().format(fmtData) %> · <%= ev.getInicio_evento().format(fmtHora) %>',
             fim: '<%= ev.getFim_evento().format(fmtData) %>',
+            inicioIsoData: '<%= ev.getInicio_evento().toLocalDate() %>',
+            inicioIsoHora: '<%= ev.getInicio_evento().format(fmtHora) %>',
+            fimIsoData: '<%= ev.getFim_evento().toLocalDate() %>',
+            fimIsoHora: '<%= ev.getFim_evento().format(fmtHora) %>',
             capacidade: <%= ev.getCapacidade_evento() %>,
             inscritos: <%= inscritos %>,
             espera: <%= espera %>,
+            vinculados: <%= inscritos + espera %>,
             pct: <%= pct %>,
             codigo: '<%= js(ev.getCodigo_evento()) %>',
             descricao: '<%= js(ev.getDescricao_evento()) %>'
@@ -1726,13 +1880,7 @@
     (function abrirViewInicial() {
         const params = new URLSearchParams(window.location.search);
         const view = params.get('view');
-        const abrirEvento = params.get('abrirEvento');
-
-        if (abrirEvento) {
-            abrirDetalheEvento(parseInt(abrirEvento, 10));
-        } else if (view) {
-            mudarViewById(view);
-        }
+        if (view) mudarViewById(view);
     })();
 
     // =========================================================
@@ -1782,11 +1930,60 @@
                     <strong>\${ev.inscritos}/\${ev.capacidade}</strong>
                     <div class="mini-bar"><span class="\${corBarra(ev.pct)}" style="width:\${ev.pct}%"></span></div>
                 </div>
+                <div class="actions" onclick="event.stopPropagation()">
+                    \${ev.status === 'rascunho' ? `<button class="btn-solid" onclick="publicarRascunho(\${ev.id})" title="Publicar evento">🚀 Publicar</button>` : ''}
+                    <button class="btn-outline" onclick="abrirEdicaoEvento(\${ev.id})" title="Editar evento">✎ Editar</button>
+                </div>
             </div>
         `).join('') || '<div class="empty-state">Nenhum evento nesse status.</div>';
     }
 
     renderizarEventosOrganizador('todos');
+
+    // =========================================================
+    // Publica um rascunho direto da listagem, sem precisar abrir
+    // o formulário completo de edição.
+    // =========================================================
+    function publicarRascunho(id) {
+        const ev = eventosData.find(e => e.id === id);
+        if (!ev) return;
+
+        if (!confirm('Publicar o evento "' + ev.nome + '"? Ele ficará visível para inscrição.')) {
+            return;
+        }
+
+        const form = document.createElement('form');
+        form.method = 'post';
+        form.action = '${pageContext.request.contextPath}/eventoController';
+        form.enctype = 'multipart/form-data';
+
+        const campos = {
+            action: 'editar',
+            id_evento: ev.id,
+            id_organizador: <%= usuarioLogado.getId_usuario() %>,
+            status_evento: 'ativo',
+            nome_evento: ev.nome,
+            tipo_evento: ev.tipo,
+            local_evento: ev.local,
+            capacidade_evento: ev.capacidade,
+            codigo_evento: ev.codigo,
+            descricao_evento: ev.descricao,
+            categoria_evento: ev.categoriaValue,
+            inicio_evento: ev.inicioIsoData + 'T' + ev.inicioIsoHora + ':00',
+            fim_evento: ev.fimIsoData + 'T' + ev.fimIsoHora + ':00'
+        };
+
+        for (const chave in campos) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = chave;
+            input.value = campos[chave];
+            form.appendChild(input);
+        }
+
+        document.body.appendChild(form);
+        form.submit();
+    }
 
     document.querySelectorAll('#tabs-eventos .tab-btn').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -1813,6 +2010,8 @@
         statusEl.textContent = ev.statusLabel;
         statusEl.className = 'status-pill ' + (ev.status === 'ativo' ? '' : ev.status);
 
+        document.getElementById('btnPublicarDetalhe').style.display = ev.status === 'rascunho' ? '' : 'none';
+
         document.getElementById('det_ev_tipo').textContent = ev.tipo === 'publico' ? 'Público' : 'Privado';
         document.getElementById('det_ev_categoria').textContent = ev.categoria;
         document.getElementById('det_ev_inicio').textContent = ev.inicio;
@@ -1822,14 +2021,6 @@
         document.getElementById('det_ev_inscritos').textContent = ev.inscritos + ' (' + ev.pct + '%)';
         document.getElementById('det_ev_codigo').textContent = ev.codigo;
         document.getElementById('det_ev_descricao').textContent = ev.descricao || '—';
-
-        const publicarBtn = document.getElementById('det_ev_publicar_btn');
-        if (ev.status === 'rascunho') {
-            publicarBtn.style.display = 'inline-flex';
-            publicarBtn.href = '${pageContext.request.contextPath}/eventoController?action=publicar&id=' + id;
-        } else {
-            publicarBtn.style.display = 'none';
-        }
 
         const vinculados = contratosData.filter(c => c.idEvento === id);
 
@@ -2018,9 +2209,9 @@
         if (c.anexo) {
             const nomeArquivo = c.anexo.split('/').pop();
             anexoWrap.innerHTML = `
-                <a href="${pageContext.request.contextPath}/\\${c.anexo}" target="_blank"
+                <a href="${pageContext.request.contextPath}/\${c.anexo}" target="_blank"
                    style="display:flex; align-items:center; gap:8px; padding:10px 14px; background:#ECFDF5; border:1px solid #A7F3D0; border-radius:9px; color:#065F46; font-size:13px; font-weight:600;">
-                   📎 \\${nomeArquivo}
+                   📎 \${nomeArquivo}
                 </a>
             `;
         } else {
@@ -2106,7 +2297,7 @@
     }
 
     // =========================================================
-    // FORM: CRIAR EVENTO
+    // FORM: CRIAR / EDITAR EVENTO
     // =========================================================
 
     function selecionarToggle(idAtivo, idInativo) {
@@ -2120,22 +2311,281 @@
         document.getElementById('codigo_evento_input').value = 'EVT-' + ano + '-' + sufixo;
     }
 
+    // Pré-preenche o código já no carregamento da página (cobre o caso
+    // de abrir a view "criarEvento" direto por ?view=criarEvento).
     gerarCodigoEvento();
 
-    function prepararSubmitEvento() {
-        const dataInicio = document.getElementById('data_inicio_input').value;
+    // Data mínima permitida (hoje) nos seletores de data — reforça no
+    // cliente a mesma regra validada no servidor: não é possível criar/
+    // editar um evento com data de início já no passado.
+    (function aplicarDataMinima() {
+        const hoje = new Date();
+        const iso = hoje.getFullYear() + '-'
+            + String(hoje.getMonth() + 1).padStart(2, '0') + '-'
+            + String(hoje.getDate()).padStart(2, '0');
+        document.getElementById('data_inicio_input').min = iso;
+        document.getElementById('data_fim_input').min = iso;
+    })();
+
+    // =========================================================
+    // Alterna entre "campos travados" (evento com inscritos/fila)
+    // e "campos livres" (evento sem ninguém vinculado ainda).
+    // Campos sensíveis nunca usam o atributo "disabled" quando o
+    // servidor precisa receber o valor de volta (nome, local, tipo,
+    // categoria) — assim o valor original continua sendo enviado no
+    // POST mesmo com o campo visualmente bloqueado para o usuário.
+    // =========================================================
+    function aplicarBloqueioCampoEvento(bloqueado) {
+        document.getElementById('nome_evento_input').readOnly = bloqueado;
+        document.getElementById('local_evento_input').readOnly = bloqueado;
+        document.getElementById('grupoTipoEvento').classList.toggle('campo-bloqueado', bloqueado);
+        document.getElementById('categoria_evento_input').classList.toggle('campo-bloqueado', bloqueado);
+
+        // Estes 4 campos não têm "name" (só alimentam os hidden inputs
+        // via prepararSubmitEvento), então "disabled" aqui é 100% seguro.
+        document.getElementById('data_inicio_input').disabled = bloqueado;
+        document.getElementById('data_fim_input').disabled = bloqueado;
+        document.getElementById('hora_inicio_input').disabled = bloqueado;
+        document.getElementById('hora_fim_input').disabled = bloqueado;
+        document.getElementById('codigo_evento_input').disabled = bloqueado;
+        document.getElementById('btnGerarCodigo').disabled = bloqueado;
+
+        document.getElementById('avisoEdicaoBloqueada').style.display = bloqueado ? 'block' : 'none';
+        document.getElementById('blocoVincularFornecedorCriacao').style.display = bloqueado ? 'none' : '';
+        document.getElementById('blocoFornecedoresEmEdicao').style.display = bloqueado ? 'block' : 'none';
+    }
+
+    function abrirCriacaoEvento() {
+        document.getElementById('formCriarEvento').reset();
+        document.getElementById('tituloFormEvento').textContent = 'Criar evento';
+        document.getElementById('subtituloFormEvento').textContent = 'Criar novo evento';
+        document.getElementById('btnSalvarRascunho').textContent = '💾 Salvar como rascunho';
+        document.getElementById('btnPublicarEvento').textContent = '🚀 Publicar';
+        document.getElementById('avisoDataPassada').style.display = 'none';
+        document.getElementById('acaoFormEvento').value = 'novo';
+        document.getElementById('id_evento_input').value = '';
+        document.getElementById('status_evento_hidden').value = 'rascunho';
+        document.getElementById('data_inicio_input').value = '';
+        document.getElementById('data_fim_input').value = '';
+        document.getElementById('hora_inicio_input').value = '09:00';
+        document.getElementById('hora_fim_input').value = '18:00';
+        document.getElementById('lbl_tipo_publico').classList.add('active');
+        document.getElementById('lbl_tipo_privado').classList.remove('active');
+        document.querySelector('input[name="tipo_evento"][value="publico"]').checked = true;
+
+        aplicarBloqueioCampoEvento(false);
+        gerarCodigoEvento();
+        mudarViewById('criarEvento');
+    }
+
+    function abrirEdicaoEvento(id) {
+        const ev = eventosData.find(e => e.id === id);
+        if (!ev) return;
+
+        document.getElementById('tituloFormEvento').textContent = 'Editar evento';
+        document.getElementById('subtituloFormEvento').textContent = 'Editando "' + ev.nome + '"';
+        document.getElementById('btnSalvarRascunho').textContent =
+            ev.status === 'rascunho' ? '💾 Salvar rascunho' : '💾 Voltar para rascunho';
+        document.getElementById('btnPublicarEvento').textContent =
+            ev.status === 'ativo' ? '🚀 Salvar (publicado)' : '🚀 Publicar';
+        document.getElementById('avisoDataPassada').style.display = 'none';
+        document.getElementById('acaoFormEvento').value = 'editar';
+        document.getElementById('id_evento_input').value = ev.id;
+        document.getElementById('status_evento_hidden').value = ev.status;
+
+        document.getElementById('nome_evento_input').value = ev.nome;
+        document.getElementById('local_evento_input').value = ev.local;
+        document.getElementById('capacidade_evento_input').value = ev.capacidade;
+        document.getElementById('codigo_evento_input').value = ev.codigo;
+        document.getElementById('descricao_evento_input').value = ev.descricao;
+        document.getElementById('categoria_evento_input').value = ev.categoriaValue;
+
+        document.getElementById('data_inicio_input').value = ev.inicioIsoData;
+        document.getElementById('hora_inicio_input').value = ev.inicioIsoHora;
+        document.getElementById('data_fim_input').value = ev.fimIsoData;
+        document.getElementById('hora_fim_input').value = ev.fimIsoHora;
+
+        if (ev.tipo === 'privado') {
+            selecionarToggle('lbl_tipo_privado', 'lbl_tipo_publico');
+            document.querySelector('input[name="tipo_evento"][value="privado"]').checked = true;
+        } else {
+            selecionarToggle('lbl_tipo_publico', 'lbl_tipo_privado');
+            document.querySelector('input[name="tipo_evento"][value="publico"]').checked = true;
+        }
+
+        aplicarBloqueioCampoEvento(ev.vinculados > 0);
+        mudarViewById('criarEvento');
+    }
+
+    document.getElementById('btnIrParaDetalhesFornecedores').addEventListener('click', function () {
+        const id = parseInt(document.getElementById('id_evento_input').value, 10);
+        if (id) abrirDetalheEvento(id);
+    });
+
+    // =========================================================
+    // Valida os campos de data/hora e monta os hidden inputs
+    // (inicio_evento/fim_evento) que realmente vão no POST.
+    // Retorna true se pode prosseguir, false se bloqueou o envio.
+    // =========================================================
+    function validarEMontarDatasEvento() {
+        const campoInicio = document.getElementById('data_inicio_input');
+        const avisoData = document.getElementById('avisoDataPassada');
+
+        // Campos travados (evento com inscritos): os seletores de data
+        // ficam desabilitados, então os hidden inputs já carregam o
+        // valor original vindo do servidor — não sobrescrever.
+        if (campoInicio.disabled) {
+            avisoData.style.display = 'none';
+            return true;
+        }
+
+        const dataInicio = campoInicio.value;
         const horaInicio = document.getElementById('hora_inicio_input').value || '00:00';
         const dataFim = document.getElementById('data_fim_input').value || dataInicio;
         const horaFim = document.getElementById('hora_fim_input').value || '23:59';
 
         if (!dataInicio) {
-            alert('Informe a data de início.');
+            avisoData.textContent = '⚠️ Informe a data de início do evento.';
+            avisoData.style.display = 'block';
+            avisoData.scrollIntoView({ behavior: 'smooth', block: 'center' });
             return false;
         }
+
+        const inicioEscolhido = new Date(dataInicio + 'T' + horaInicio + ':00');
+
+        if (inicioEscolhido.getTime() < Date.now() - 60000) {
+            avisoData.textContent = '⚠️ Não é possível criar um evento com data de início já passada. Escolha uma data futura.';
+            avisoData.style.display = 'block';
+            avisoData.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            return false;
+        }
+
+        avisoData.style.display = 'none';
 
         document.getElementById('inicio_evento_hidden').value = dataInicio + 'T' + horaInicio + ':00';
         document.getElementById('fim_evento_hidden').value = dataFim + 'T' + horaFim + ':00';
         return true;
+    }
+
+    // Feedback imediato assim que o organizador escolhe uma data/hora,
+    // sem precisar clicar em salvar para descobrir que é inválida.
+    ['data_inicio_input', 'hora_inicio_input'].forEach(function (id) {
+        document.getElementById(id).addEventListener('change', validarEMontarDatasEvento);
+    });
+
+    // =========================================================
+    // Envia o formulário de evento com o status escolhido:
+    // 'rascunho' (Salvar como rascunho) ou 'ativo' (Publicar).
+    // =========================================================
+    // =========================================================
+    // Cadastrar fornecedor SEM sair da tela de criar/editar evento:
+    // como é um <form> separado com POST próprio, a navegação para
+    // fornecedorController é inevitável — então salvamos o rascunho
+    // do formulário de evento em sessionStorage antes de enviar, e
+    // pedimos para o controller nos trazer de volta para a mesma
+    // tela (view=criarEvento). Ao recarregar, restauramos os campos
+    // e já deixamos o fornecedor recém-criado pré-selecionado.
+    // =========================================================
+    function prepararSubmitFornecedorInline() {
+        const rascunho = {
+            acao: document.getElementById('acaoFormEvento').value,
+            idEvento: document.getElementById('id_evento_input').value,
+            nome: document.getElementById('nome_evento_input').value,
+            local: document.getElementById('local_evento_input').value,
+            capacidade: document.getElementById('capacidade_evento_input').value,
+            codigo: document.getElementById('codigo_evento_input').value,
+            descricao: document.getElementById('descricao_evento_input').value,
+            categoria: document.getElementById('categoria_evento_input').value,
+            status: document.getElementById('status_evento_hidden').value,
+            dataInicio: document.getElementById('data_inicio_input').value,
+            horaInicio: document.getElementById('hora_inicio_input').value,
+            dataFim: document.getElementById('data_fim_input').value,
+            horaFim: document.getElementById('hora_fim_input').value,
+            tipo: document.querySelector('input[name="tipo_evento"]:checked').value,
+            fornecedorRecemCriado: document.getElementById('fornecedorInlineNome').value
+        };
+
+        sessionStorage.setItem('rascunhoCriarEvento', JSON.stringify(rascunho));
+
+        document.getElementById('fornecedorInlineVoltarPara').value =
+            '${pageContext.request.contextPath}/pages/homeOrganizador.jsp?view=criarEvento&restaurarRascunhoEvento=1';
+
+        return true;
+    }
+
+    // Restaura o rascunho do evento (se houver) ao voltar da criação
+    // do fornecedor. Só age quando a URL pede explicitamente isso.
+    (function restaurarRascunhoEventoSeNecessario() {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('restaurarRascunhoEvento') !== '1') return;
+
+        const bruto = sessionStorage.getItem('rascunhoCriarEvento');
+        sessionStorage.removeItem('rascunhoCriarEvento');
+        if (!bruto) return;
+
+        let r;
+        try {
+            r = JSON.parse(bruto);
+        } catch (e) {
+            return;
+        }
+
+        if (r.acao === 'editar' && r.idEvento) {
+            abrirEdicaoEvento(parseInt(r.idEvento, 10));
+        } else {
+            abrirCriacaoEvento();
+        }
+
+        document.getElementById('nome_evento_input').value = r.nome || '';
+        document.getElementById('local_evento_input').value = r.local || '';
+        document.getElementById('capacidade_evento_input').value = r.capacidade || '';
+        if (r.codigo) document.getElementById('codigo_evento_input').value = r.codigo;
+        document.getElementById('descricao_evento_input').value = r.descricao || '';
+        if (r.categoria) document.getElementById('categoria_evento_input').value = r.categoria;
+        document.getElementById('status_evento_hidden').value = r.status || 'rascunho';
+        document.getElementById('data_inicio_input').value = r.dataInicio || '';
+        document.getElementById('hora_inicio_input').value = r.horaInicio || '09:00';
+        document.getElementById('data_fim_input').value = r.dataFim || '';
+        document.getElementById('hora_fim_input').value = r.horaFim || '18:00';
+
+        if (r.tipo === 'privado') {
+            selecionarToggle('lbl_tipo_privado', 'lbl_tipo_publico');
+            document.querySelector('input[name="tipo_evento"][value="privado"]').checked = true;
+        } else {
+            selecionarToggle('lbl_tipo_publico', 'lbl_tipo_privado');
+            document.querySelector('input[name="tipo_evento"][value="publico"]').checked = true;
+        }
+
+        // Reabre o bloco "Vincular fornecedor" com o fornecedor recém
+        // criado já selecionado (localizado pelo nome na lista fresca).
+        if (r.fornecedorRecemCriado) {
+            const select = document.querySelector('#inlineVinculoFornecedor select[name="vinculo_id_fornecedor"]');
+            if (select) {
+                const opcao = Array.from(select.options)
+                    .find(o => o.textContent.trim() === r.fornecedorRecemCriado.trim());
+                if (opcao) {
+                    select.value = opcao.value;
+                    document.getElementById('inlineVinculoFornecedor').classList.add('open');
+                }
+            }
+        }
+
+        mudarViewById('criarEvento');
+    })();
+
+    function enviarFormEvento(statusDesejado) {
+        const form = document.getElementById('formCriarEvento');
+
+        if (!form.reportValidity()) {
+            return;
+        }
+
+        if (!validarEMontarDatasEvento()) {
+            return;
+        }
+
+        document.getElementById('status_evento_hidden').value = statusDesejado;
+        form.submit();
     }
 
     // =========================================================
