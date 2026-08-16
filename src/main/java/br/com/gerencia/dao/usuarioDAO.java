@@ -13,12 +13,12 @@ public class usuarioDAO {
 
 	    private Connection conexao;
 
-	    //Construtor da conexao com BD
+	    //Construtor da conexao
 	    public usuarioDAO(Connection conexao) {
 	        this.conexao = conexao;
 	    }
 
-    // ================= BUSCAR USUARIO PARA LOGIN =================
+    //  BUSCAR USUARIO PARA LOGIN 
     public usuarioModel buscarPorEmailESenha(String email, String senha) throws Exception {
 
         String sql = "SELECT * FROM usuario WHERE email_usuario = ? AND senha_usuario = ?";
@@ -50,7 +50,7 @@ public class usuarioDAO {
         return usuario;
     }
 
-    // ================= ADICIONAR USUARIO =================
+    // ADICIONAR USUARIO 
     public void adicionarUsuario(usuarioModel usuario) throws Exception {
 
         String sql = "INSERT INTO usuario "
@@ -71,7 +71,7 @@ public class usuarioDAO {
         stmt.close();
     }
 
-    // ================= LISTAR USUÁRIOS =================
+    //LISTAR USUÁRIOS
     public List<usuarioModel> listarUsuarios() throws Exception {
 
         List<usuarioModel> usuarios = new ArrayList<>();
@@ -102,7 +102,7 @@ public class usuarioDAO {
         return usuarios;
     }
 
-    // ================= BUSCAR USUARIO POR ID =================
+    // BUSCAR USUARIO POR ID 
     public usuarioModel buscarPorId(int idUsuario) throws Exception {
 
         String sql = "SELECT * FROM usuario WHERE id_usuario = ?";
@@ -134,7 +134,7 @@ public class usuarioDAO {
         return usuario;
     }
 
-    // ================= BUSCAR USUARIO POR CPF (checagem de duplicidade) =================
+    // buscar user por CPF  não deve se repetir
     public usuarioModel buscarPorCPF(String cpf) throws Exception {
 
         String sql = "SELECT * FROM usuario WHERE CPF_usuario = ?";
@@ -166,7 +166,7 @@ public class usuarioDAO {
         return usuario;
     }
 
-    // ================= BUSCAR USUARIO POR EMAIL (checagem de duplicidade) =================
+    // buscar user por email  não deve se repetir
     public usuarioModel buscarPorEmail(String email) throws Exception {
 
         String sql = "SELECT * FROM usuario WHERE email_usuario = ?";
@@ -198,7 +198,7 @@ public class usuarioDAO {
         return usuario;
     }
 
-    // ================= ATUALIZAR USUARIO =================
+    // atualizar user
     public void atualizarUsuario(usuarioModel usuario) throws Exception {
 
         String sql = "UPDATE usuario SET "
@@ -225,7 +225,7 @@ public class usuarioDAO {
         stmt.close();
     }
 
-    // ================= ALTERAR SENHA =================
+    // mudar senha
     public void alterarSenha(int idUsuario, String novaSenha) throws Exception {
 
         String sql = "UPDATE usuario SET senha_usuario = ? WHERE id_usuario = ?";
@@ -240,7 +240,7 @@ public class usuarioDAO {
         stmt.close();
     }
 
-    // ================= EXCLUIR USUARIO =================
+    // excluir user
     public void excluirUsuario(int idUsuario) throws Exception {
 
         String sql = "DELETE FROM usuario WHERE id_usuario = ?";

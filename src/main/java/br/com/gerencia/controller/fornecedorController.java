@@ -1,29 +1,46 @@
 package br.com.gerencia.controller;
 
 import br.com.gerencia.dao.fornecedorDAO;
+import br.com.gerencia.dao.contratoDAO;
 import br.com.gerencia.model.fornecedorModel;
+import br.com.gerencia.model.contratoModel;
 import br.com.gerencia.utils.Conexao;
 
 import javax.servlet.RequestDispatcher;
 import javax.servlet.ServletException;
+import javax.servlet.annotation.MultipartConfig;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
+import javax.servlet.http.Part;
 
+import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.sql.Connection;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @WebServlet("/fornecedorController")
+@MultipartConfig(
+    maxFileSize = 10 * 1024 * 1024,
+    maxRequestSize = 12 * 1024 * 1024
+)
 public class fornecedorController extends HttpServlet {
 
     private static final long serialVersionUID = 1L;
 
     private fornecedorDAO fornecedorDAO;
+    private contratoDAO contratoDAO;
 
-    // ================= INIT =================
+    
     @Override
     public void init() {
 
@@ -32,6 +49,7 @@ public class fornecedorController extends HttpServlet {
             Connection conexao = Conexao.getConnection();
 
             fornecedorDAO = new fornecedorDAO(conexao);
+            contratoDAO = new contratoDAO(conexao);
 
         } catch (Exception e) {
 
@@ -41,7 +59,7 @@ public class fornecedorController extends HttpServlet {
         }
     }
 
-    // ================= GET =================
+    // get
     @Override
     protected void doGet(HttpServletRequest request,
                          HttpServletResponse response)
@@ -71,7 +89,7 @@ public class fornecedorController extends HttpServlet {
         }
     }
 
-    // ================= POST =================
+    // post
     @Override
     protected void doPost(HttpServletRequest request,
                           HttpServletResponse response)
@@ -112,7 +130,7 @@ public class fornecedorController extends HttpServlet {
         }
     }
 
-    // ================= CADASTRAR =================
+    // cadastrar
     private void cadastrarFornecedor(HttpServletRequest request,
                                      HttpServletResponse response)
             throws Exception {
@@ -132,7 +150,7 @@ public class fornecedorController extends HttpServlet {
         String email =
             request.getParameter("email");
 
-        // ================= VALIDAÇÕES =================
+        //validações
 
         if (nome == null || nome.isBlank()) {
             throw new Exception(
@@ -189,7 +207,51 @@ public class fornecedorController extends HttpServlet {
                 email
             );
 
-        fornecedorDAO.adicionarFornecedor(fornecedor);
+        int idFornecedorGerado = fornecedorDAO.adicionarFornecedor(fornecedor);
+
+       
+        // CONTRATO OPCIONAL (só se o organizador selecionou
+        // um evento existente pra vincular na mesma tela)
+   
+
+        String idEventoVinculo = request.getParameter("id_evento_vinculo");
+
+        if (idEventoVinculo != null && !idEventoVinculo.isBlank()) {
+
+            String dataContratoParam = request.getParameter("data_contrato_vinculo");
+            String valorPagoParam = request.getParameter("valor_pago_vinculo");
+            String valorTotalParam = request.getParameter("valor_total_vinculo");
+            String responsavelContrato = request.getParameter("responsavel_contrato_vinculo");
+            String contatoResponsavel = request.getParameter("contato_responsavel_vinculo");
+            String objetoContrato = request.getParameter("objeto_contrato_vinculo");
+
+            LocalDateTime dataContrato = (dataContratoParam == null || dataContratoParam.isBlank())
+                ? LocalDateTime.now()
+                : LocalDate.parse(dataContratoParam).atStartOfDay();
+
+            double valorPago = (valorPagoParam == null || valorPagoParam.isBlank())
+                ? 0.0 : Double.parseDouble(valorPagoParam);
+
+            double valorTotal = (valorTotalParam == null || valorTotalParam.isBlank())
+                ? 0.0 : Double.parseDouble(valorTotalParam);
+
+            String anexoContrato = salvarArquivoContratoVinculo(request);
+
+            contratoModel contrato = new contratoModel(
+                idFornecedorGerado,
+                Integer.parseInt(idEventoVinculo),
+                dataContrato,
+                valorPago,
+                valorTotal,
+                (responsavelContrato == null || responsavelContrato.isBlank()) ? nome : responsavelContrato,
+                contatoResponsavel,
+                (objetoContrato == null || objetoContrato.isBlank())
+                    ? "Serviços de " + categoria : objetoContrato,
+                anexoContrato
+            );
+
+            contratoDAO.adicionarContrato(contrato);
+        }
 
         response.sendRedirect(
             request.getContextPath()
@@ -197,7 +259,56 @@ public class fornecedorController extends HttpServlet {
         );
     }
 
-    // ================= ATUALIZAR =================
+  
+    // SAalvar contrato (anexar), quando o contrato
+    // é criado junto do cadastro de fornecedor.
+  
+    private String salvarArquivoContratoVinculo(HttpServletRequest request) throws Exception {
+
+        Part filePart = request.getPart("arquivo_contrato_vinculo");
+
+        if (filePart == null || filePart.getSize() == 0) {
+            return null;
+        }
+
+        String header = filePart.getHeader("content-disposition");
+        String nomeOriginal = null;
+
+        for (String token : header.split(";")) {
+            if (token.trim().startsWith("filename")) {
+                nomeOriginal = token.substring(token.indexOf('=') + 1).trim().replace("\"", "");
+            }
+        }
+
+        if (nomeOriginal == null || nomeOriginal.isBlank()) {
+            return null;
+        }
+
+        String extensao = "";
+        int pontoIdx = nomeOriginal.lastIndexOf('.');
+        if (pontoIdx >= 0) {
+            extensao = nomeOriginal.substring(pontoIdx);
+        }
+
+        String nomeArmazenado = "ctr_" + System.currentTimeMillis() + extensao;
+
+        String caminhoReal = getServletContext().getRealPath("/uploads/contratos/");
+
+        File pastaDestino = new File(caminhoReal);
+        if (!pastaDestino.exists()) {
+            pastaDestino.mkdirs();
+        }
+
+        Path destino = Paths.get(caminhoReal, nomeArmazenado);
+
+        try (InputStream in = filePart.getInputStream()) {
+            Files.copy(in, destino, StandardCopyOption.REPLACE_EXISTING);
+        }
+
+        return "uploads/contratos/" + nomeArmazenado;
+    }
+
+    // atualizar
     private void atualizarFornecedor(HttpServletRequest request,
                                      HttpServletResponse response)
             throws Exception {
@@ -229,7 +340,7 @@ public class fornecedorController extends HttpServlet {
         String email =
             request.getParameter("email");
 
-        // ================= VALIDAÇÕES =================
+        // validações
 
         if (nome == null || nome.isBlank()) {
             throw new Exception(
@@ -279,7 +390,7 @@ public class fornecedorController extends HttpServlet {
         );
     }
 
-    // ================= BUSCAR POR ID =================
+    // buscar por id
     private void buscarFornecedor(HttpServletRequest request,
                                   HttpServletResponse response)
             throws Exception {
@@ -312,7 +423,7 @@ public class fornecedorController extends HttpServlet {
         dispatcher.forward(request, response);
     }
 
-    // ================= EXCLUIR =================
+    // excluir
     private void excluirFornecedor(HttpServletRequest request,
                                    HttpServletResponse response)
             throws Exception {
@@ -337,7 +448,7 @@ public class fornecedorController extends HttpServlet {
         );
     }
 
-    // ================= LISTAR =================
+    // listar
     private void listarFornecedores(HttpServletRequest request,
                                     HttpServletResponse response)
             throws Exception {

@@ -91,6 +91,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>GerenCIA - Início</title>
 
+<!-- Ajuste automático de proporções para qualquer tamanho de tela -->
+<script src="${pageContext.request.contextPath}/js/responsivo.js"></script>
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -118,7 +121,7 @@
     .app {
         display: grid;
         grid-template-columns: 240px 1fr;
-        min-height: 100vh;
+        min-height: calc(var(--vh, 1vh) * 100);
     }
 
     /* ================= SIDEBAR ================= */
@@ -131,7 +134,7 @@
         padding: 20px 14px;
         position: sticky;
         top: 0;
-        height: 100vh;
+        height: calc(var(--vh, 1vh) * 100);
     }
 
     .sidebar-logo {
@@ -359,6 +362,13 @@
     }
 
     .btn-solid:hover { background: #1D4ED8; }
+
+    .btn-checkin.aguardando {
+        background: #CBD5E1;
+        color: #64748B;
+        cursor: not-allowed;
+        pointer-events: none;
+    }
 
     /* ================= BANNER (Início) ================= */
 
@@ -742,7 +752,7 @@
         .sidebar {
             position: fixed;
             top: 0; left: 0;
-            height: 100vh;
+            height: calc(var(--vh, 1vh) * 100);
             width: 240px;
             z-index: 50;
             transform: translateX(-100%);
@@ -847,7 +857,9 @@
 
             <div class="search-box">
                 🔍
-                <input type="text" placeholder="Buscar eventos...">
+                <input type="text" id="searchInput" placeholder="Buscar por nome ou código do evento..."
+                       oninput="aplicarBuscaEventos(this.value)"
+                       onkeydown="if(event.key==='Enter'){ event.preventDefault(); mudarViewById('eventos'); }">
             </div>
 
             <div class="topbar-actions">
@@ -1135,6 +1147,17 @@
                     <div class="actions">
                         <% if ("Confirmada".equals(insc.getStatus_inscricao())) { %>
                         <button class="btn-outline" onclick="gerarComprovante(<%= insc.getId_inscricao() %>)">📄 Comprovante</button>
+
+                        <% if (insc.getCheckin() != null) { %>
+                        <button class="btn-outline" disabled>✓ Check-in realizado</button>
+                        <% } else { %>
+                        <button class="btn-solid btn-checkin"
+                                id="checkinBtn_<%= insc.getId_inscricao() %>"
+                                data-inicio="<%= evM.getInicio_evento().toString() %>"
+                                data-fim="<%= evM.getFim_evento().toString() %>"
+                                data-inscricao="<%= insc.getId_inscricao() %>"
+                                onclick="realizarCheckin(<%= insc.getId_inscricao() %>, '<%= js(evM.getNome_evento()) %>')">✅ Fazer Check-in</button>
+                        <% } %>
                         <% } %>
                         <a class="btn-outline"
                            href="${pageContext.request.contextPath}/inscricaoController?action=cancelar&id=<%= insc.getId_inscricao() %>"
@@ -1335,6 +1358,7 @@
             for (eventoModel ev : eventosAtivos) {
 
                 int inscritosEv = inscricaoDAOJsp.contarConfirmados(ev.getId_evento());
+                int filaEv = inscricaoDAOJsp.contarEspera(ev.getId_evento());
                 boolean lotadoEv = inscritosEv >= ev.getCapacidade_evento();
                 int pctEv = ev.getCapacidade_evento() > 0
                     ? (int) Math.round((inscritosEv * 100.0) / ev.getCapacidade_evento())
@@ -1368,6 +1392,7 @@
             inscritos: <%= inscritosEv %>,
             ocupacao: <%= pctEv %>,
             lotado: <%= lotadoEv %>,
+            filaAtual: <%= filaEv %>,
             favorito: <%= favoritoEv %>,
             meuStatus: '<%= meuStatusEv %>',
             descricao: '<%= js(ev.getDescricao_evento()) %>'
@@ -1516,10 +1541,52 @@
         form.submit();
     }
 
+    // id do evento aguardando confirmação de entrada na lista de espera
+    let filaEventoIdPendente = null;
+
     function inscrever(id, entrarNaFila) {
-        if (!confirm(entrarNaFila ? 'Este evento está lotado. Deseja entrar na lista de espera?' : 'Confirmar inscrição neste evento?')) {
+
+        if (entrarNaFila) {
+            abrirModalFila(id);
             return;
         }
+
+        if (!confirm('Confirmar inscrição neste evento?')) {
+            return;
+        }
+
+        enviarInscricao(id, false, 0);
+    }
+
+    function abrirModalFila(id) {
+        const ev = eventosReais.find(e => e.id === id);
+        if (!ev) return;
+
+        filaEventoIdPendente = id;
+
+        const posicao = (ev.filaAtual || 0) + 1;
+
+        document.getElementById('fila_nome_evento').textContent = ev.nome;
+        document.getElementById('fila_posicao').textContent = posicao + 'º da fila';
+        document.getElementById('modalFilaEspera').classList.add('open');
+    }
+
+    function fecharModalFila() {
+        document.getElementById('modalFilaEspera').classList.remove('open');
+        filaEventoIdPendente = null;
+    }
+
+    function confirmarEntradaFila() {
+        if (filaEventoIdPendente == null) return;
+
+        const ev = eventosReais.find(e => e.id === filaEventoIdPendente);
+        const posicao = ev ? (ev.filaAtual || 0) + 1 : 0;
+
+        enviarInscricao(filaEventoIdPendente, true, posicao);
+        fecharModalFila();
+    }
+
+    function enviarInscricao(id, entrarNaFila, posicaoFila) {
 
         const form = document.createElement('form');
         form.method = 'post';
@@ -1531,7 +1598,8 @@
             id_usuario: '<%= usuarioLogado.getId_usuario() %>',
             data_inscricao: new Date().toISOString().split('.')[0],
             status_inscricao: entrarNaFila ? 'Espera' : 'Confirmada',
-            metodo_inscricao: 'ingresso'
+            metodo_inscricao: 'ingresso',
+            posicao_fila: posicaoFila || 0
         };
 
         for (const chave in campos) {
@@ -1546,20 +1614,137 @@
         form.submit();
     }
 
+    // =========================================================
+    // CHECK-IN
+    // O botão fica sempre visível a partir do momento em que o
+    // usuário está com inscrição Confirmada, mas só é clicável
+    // quando o horário atual está dentro do período do evento.
+    // =========================================================
+
+    function estaDentroDoPeriodoEvento(inicioIso, fimIso) {
+        const agora = new Date();
+        const inicio = new Date(inicioIso);
+        const fim = new Date(fimIso);
+        return agora >= inicio && agora <= fim;
+    }
+
+    function atualizarBotoesCheckin() {
+        document.querySelectorAll('.btn-checkin').forEach(function (btn) {
+            const inicio = btn.getAttribute('data-inicio');
+            const fim = btn.getAttribute('data-fim');
+            const dentroDoPeriodo = estaDentroDoPeriodoEvento(inicio, fim);
+
+            btn.classList.toggle('aguardando', !dentroDoPeriodo);
+
+            if (dentroDoPeriodo) {
+                btn.textContent = '✅ Fazer Check-in';
+                btn.title = 'Confirme sua presença no evento';
+            } else {
+                const inicioData = new Date(inicio);
+                const agora = new Date();
+                btn.textContent = agora < inicioData ? '⏳ Check-in indisponível' : '⏳ Check-in encerrado';
+                btn.title = agora < inicioData
+                    ? 'O check-in só é liberado durante o período do evento'
+                    : 'O período do evento já foi encerrado';
+            }
+        });
+    }
+
+    function realizarCheckin(idInscricao, nomeEvento) {
+        const btn = document.getElementById('checkinBtn_' + idInscricao);
+
+        if (btn && btn.classList.contains('aguardando')) {
+            alert('O check-in só pode ser feito durante o período de acontecimento do evento.');
+            return;
+        }
+
+        if (!confirm('Confirmar check-in em "' + nomeEvento + '"?')) {
+            return;
+        }
+
+        window.location.href =
+            '${pageContext.request.contextPath}/inscricaoController?action=checkin&id=' + idInscricao;
+    }
+
+    atualizarBotoesCheckin();
+    setInterval(atualizarBotoesCheckin, 30000);
+
+    // Feedback do check-in após o redirect do controller
+    (function feedbackCheckin() {
+        const params = new URLSearchParams(window.location.search);
+        const status = params.get('checkin');
+
+        if (!status) return;
+
+        if (status === 'ok') {
+            alert('Check-in realizado com sucesso!');
+        } else {
+            const msg = params.get('checkinMsg') || 'Não foi possível realizar o check-in.';
+            alert(msg);
+        }
+    })();
+
     function renderizarGrid(containerId, lista) {
         document.getElementById(containerId).innerHTML =
             lista.map(criarCardEvento).join('') || '<div class="empty-state" style="grid-column:1/-1;text-align:center;color:#94A3B8;padding:30px;">Nenhum evento encontrado.</div>';
     }
 
-    // Início: mostra os 3 primeiros
-    renderizarGrid('grid-inicio', eventosReais.slice(0, 3));
+    // =========================================================
+    // VISIBILIDADE PÚBLICO x PRIVADO
+    // Eventos privados só aparecem na listagem geral quando o
+    // usuário digita exatamente o código do evento na busca.
+    // Eventos já vinculados ao usuário (inscrito/fila/favorito)
+    // continuam visíveis normalmente nas telas específicas deles.
+    // =========================================================
+    function eventosPublicos() {
+        return eventosReais.filter(e => e.tipo === 'publico');
+    }
 
-    // Eventos: mostra todos
-    renderizarGrid('grid-eventos', eventosReais);
+    let categoriaAtivaInicio = 'Todos';
+
+    function aplicarBuscaEventos(termoOriginal) {
+        const termo = (termoOriginal || '').trim().toLowerCase();
+
+        let resultado;
+
+        if (!termo) {
+            resultado = categoriaAtivaInicio === 'Todos'
+                ? eventosPublicos()
+                : eventosPublicos().filter(e => e.categoria === categoriaAtivaInicio);
+        } else {
+            resultado = eventosReais.filter(function (ev) {
+                const codigo = (ev.codigo || '').toLowerCase();
+
+                // Evento privado: só entra no resultado com o código EXATO.
+                if (ev.tipo === 'privado') {
+                    return codigo === termo;
+                }
+
+                // Evento público: busca por nome, local ou código (parcial).
+                return ev.nome.toLowerCase().includes(termo)
+                    || ev.local.toLowerCase().includes(termo)
+                    || codigo.includes(termo);
+            });
+        }
+
+        renderizarGrid('grid-inicio', resultado.slice(0, 6));
+        renderizarGrid('grid-eventos', resultado);
+        document.getElementById('contador-eventos').textContent =
+            resultado.length + ' evento(s) encontrado(s)';
+
+        return resultado;
+    }
+
+    // Início: mostra os 3 primeiros eventos públicos
+    renderizarGrid('grid-inicio', eventosPublicos().slice(0, 3));
+
+    // Eventos: mostra todos os eventos públicos por padrão
+    renderizarGrid('grid-eventos', eventosPublicos());
     document.getElementById('contador-eventos').textContent =
-        eventosReais.length + ' evento(s) encontrado(s)';
+        eventosPublicos().length + ' evento(s) encontrado(s)';
 
-    // Favoritos: só os favoritados
+    // Favoritos: só os favoritados (o usuário já conhece o evento,
+    // então mostramos mesmo que seja privado)
     const favoritados = eventosReais.filter(e => e.favorito);
     renderizarGrid('grid-favoritos', favoritados);
     document.getElementById('contador-favoritos').textContent =
@@ -1571,12 +1756,10 @@
             document.querySelectorAll('.category-pills .pill').forEach(p => p.classList.remove('active'));
             pill.classList.add('active');
 
-            const categoria = pill.textContent.trim();
-            const filtrada = categoria === 'Todos'
-                ? eventosReais
-                : eventosReais.filter(e => e.categoria === categoria);
+            categoriaAtivaInicio = pill.textContent.trim();
 
-            renderizarGrid('grid-inicio', filtrada.slice(0, 6));
+            const searchInput = document.getElementById('searchInput');
+            aplicarBuscaEventos(searchInput ? searchInput.value : '');
         });
     });
 
@@ -1711,6 +1894,34 @@
     }
 
 </script>
+
+<!-- ================= MODAL: LISTA DE ESPERA (EVENTO LOTADO) ================= -->
+<div class="modal-overlay" id="modalFilaEspera">
+    <div class="modal-box" style="max-width:420px;">
+        <div class="modal-header">
+            <h3>Evento lotado</h3>
+            <button class="modal-close" onclick="fecharModalFila()">×</button>
+        </div>
+
+        <p style="font-size:13px; color:#475569; margin-bottom:10px;">
+            O evento <strong id="fila_nome_evento">—</strong> atingiu a capacidade máxima de participantes confirmados.
+        </p>
+
+        <p style="font-size:13px; color:#475569; margin-bottom:6px;">
+            Você tem interesse em entrar na lista de espera? 
+        </p>
+
+        <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:10px; padding:10px 14px; margin-bottom:18px;">
+            <label style="display:block; font-size:10px; color:#94A3B8; text-transform:uppercase; margin-bottom:4px;">Sua posição na fila, caso confirme</label>
+            <div id="fila_posicao" style="font-size:16px; font-weight:700; color:#2563EB;">—</div>
+        </div>
+
+        <div style="display:flex; gap:10px; justify-content:flex-end;">
+            <button class="btn-outline" onclick="fecharModalFila()">Cancelar</button>
+            <button class="btn-solid" onclick="confirmarEntradaFila()">Entrar na lista de espera</button>
+        </div>
+    </div>
+</div>
 
 <!-- ================= MODAL: DETALHES DA INSCRIÇÃO ================= -->
 <div class="modal-overlay" id="modalInscricao">

@@ -63,6 +63,12 @@ public class eventoController extends HttpServlet {
                 return;
             }
 
+            if ("publicar".equals(action)) {
+
+                publicarEvento(request, response);
+                return;
+            }
+
             listarEventos(request, response);
 
         } catch (Exception e) {
@@ -218,11 +224,11 @@ public class eventoController extends HttpServlet {
                 idOrganizadorInt
             );
 
-        eventoDAO.adicionarEvento(evento);
+        int idEventoGerado = eventoDAO.adicionarEvento(evento);
 
         response.sendRedirect(
             request.getContextPath()
-            + "/pages/homeOrganizador.jsp"
+            + "/pages/homeOrganizador.jsp?view=eventos&abrirEvento=" + idEventoGerado
         );
     }
 
@@ -411,6 +417,27 @@ public class eventoController extends HttpServlet {
         response.sendRedirect(
             request.getContextPath()
             + "/pages/homeOrganizador.jsp"
+        );
+    }
+
+    // ================= PUBLICAR (rascunho -> ativo) =================
+    private void publicarEvento(HttpServletRequest request,
+                                HttpServletResponse response)
+            throws Exception {
+
+        String idParametro = request.getParameter("id");
+
+        if (idParametro == null || idParametro.isBlank()) {
+            throw new Exception("ID do evento não informado");
+        }
+
+        int idEvento = Integer.parseInt(idParametro);
+
+        eventoDAO.atualizarStatus(idEvento, "ativo");
+
+        response.sendRedirect(
+            request.getContextPath()
+            + "/pages/homeOrganizador.jsp?view=eventos&abrirEvento=" + idEvento
         );
     }
 

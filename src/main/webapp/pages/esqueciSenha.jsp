@@ -6,6 +6,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>GerenCIA - Recuperar senha</title>
 
+<!-- Ajuste automático de proporções para qualquer tamanho de tela -->
+<script src="${pageContext.request.contextPath}/js/responsivo.js"></script>
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -18,7 +21,7 @@
         font-family: 'Inter', Arial, Helvetica, sans-serif;
         color: #0F172A;
         background: #F8FAFC;
-        min-height: 100vh;
+        min-height: calc(var(--vh, 1vh) * 100);
         display: flex;
         flex-direction: column;
         align-items: center;

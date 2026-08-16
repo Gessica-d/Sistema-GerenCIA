@@ -73,6 +73,12 @@ public class inscricaoController extends HttpServlet {
                 return;
             }
 
+            if ("checkin".equals(action)) {
+
+                realizarCheckin(request, response);
+                return;
+            }
+
             if ("buscar".equals(action)) {
 
                 buscarInscricao(request, response);
@@ -119,6 +125,10 @@ public class inscricaoController extends HttpServlet {
 
                 case "cancelar":
                     cancelarInscricao(request, response);
+                    break;
+
+                case "checkin":
+                    realizarCheckin(request, response);
                     break;
 
                 default:
@@ -532,6 +542,93 @@ public class inscricaoController extends HttpServlet {
         }
 
         response.sendRedirect(request.getContextPath() + destino);
+    }
+
+    // =====================================================
+    // REALIZAR CHECK-IN
+    // Só é permitido se:
+    //  - a inscrição existe e está com status "Confirmada";
+    //  - o check-in ainda não foi feito;
+    //  - o momento atual está dentro do período do evento
+    //    (entre o início e o fim do evento).
+    // =====================================================
+    private void realizarCheckin(HttpServletRequest request,
+                                 HttpServletResponse response)
+            throws Exception {
+
+        String idParametro = request.getParameter("id");
+
+        if (idParametro == null || idParametro.isBlank()) {
+            throw new Exception("ID da inscrição não informado");
+        }
+
+        int idInscricao = Integer.parseInt(idParametro);
+
+        inscricaoModel inscricao = inscricaoDAO.buscarPorId(idInscricao);
+
+        String mensagemErro = null;
+
+        if (inscricao == null) {
+
+            mensagemErro = "Inscricao nao encontrada";
+
+        } else if (!"Confirmada".equals(inscricao.getStatus_inscricao())) {
+
+            mensagemErro = "Somente inscricoes confirmadas podem fazer check-in";
+
+        } else if (inscricao.getCheckin() != null) {
+
+            mensagemErro = "Check-in ja realizado anteriormente";
+
+        } else {
+
+            eventoModel evento = eventoDAO.buscarPorId(inscricao.getId_evento());
+
+            if (evento == null) {
+
+                mensagemErro = "Evento nao encontrado";
+
+            } else {
+
+                LocalDateTime agora = LocalDateTime.now();
+
+                boolean dentroDoPeriodo =
+                    !agora.isBefore(evento.getInicio_evento())
+                    && !agora.isAfter(evento.getFim_evento());
+
+                if (!dentroDoPeriodo) {
+
+                    mensagemErro = "O check-in so pode ser feito durante o periodo do evento";
+
+                } else {
+
+                    inscricaoDAO.atualizarCheckin(idInscricao, agora);
+                }
+            }
+        }
+
+        // ================= REDIRECT =================
+
+        HttpSession session = request.getSession(false);
+
+        usuarioModel usuarioLogado = session != null
+            ? (usuarioModel) session.getAttribute("usuarioLogado")
+            : null;
+
+        String destino = "/pages/home.jsp";
+
+        if (usuarioLogado != null && "organizador".equals(usuarioLogado.getTipo_usuario())) {
+            destino = "/pages/homeOrganizador.jsp";
+        }
+
+        String query = "?view=meus-eventos&checkin="
+                     + (mensagemErro == null ? "ok" : "erro");
+
+        if (mensagemErro != null) {
+            query += "&checkinMsg=" + java.net.URLEncoder.encode(mensagemErro, "UTF-8");
+        }
+
+        response.sendRedirect(request.getContextPath() + destino + query);
     }
 
     // ================= LISTAR =================

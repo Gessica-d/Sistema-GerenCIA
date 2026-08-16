@@ -117,7 +117,7 @@
 <%!
     private String js(String s) {
         if (s == null) return "";
-        return s.replace("\\", "\\\\").replace("'", "\\'").replace("\"", "&quot;").replace("\r", " ").replace("\n", " ");
+        return s.replace("\\", "\\\\").replace("'", "\\'").replace("\"", "&quot;").replace("\r", " ").replace("\n", " ").replace("</", "<\\/");
     }
     private String rotuloTipo(String tipo) {
         if ("organizador".equals(tipo)) return "Organizador";
@@ -155,10 +155,17 @@
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
+    html {
+        overflow-x: hidden;
+        width: 100%;
+    }
+
     body {
         font-family: 'Inter', Arial, Helvetica, sans-serif;
         color: #0F172A;
         background: #F8FAFC;
+        overflow-x: hidden;
+        width: 100%;
     }
 
     a { text-decoration: none; color: inherit; }
@@ -170,6 +177,12 @@
         display: grid;
         grid-template-columns: 230px 1fr;
         min-height: 100vh;
+        min-width: 0;
+    }
+
+    .main-col {
+        min-width: 0;
+        overflow-x: hidden;
     }
 
     /* ================= SIDEBAR (ESCURA) ================= */
@@ -637,6 +650,21 @@
     @media (max-width: 480px) {
         .stats-grid { grid-template-columns: 1fr; }
     }
+    .modal-overlay {
+        display: none; position: fixed; inset: 0; background: rgba(2,6,23,0.55);
+        align-items: center; justify-content: center; z-index: 100; padding: 20px;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-box {
+        background: #FFFFFF; border-radius: 14px; width: 100%; max-width: 440px;
+        max-height: 90vh; overflow-y: auto; padding: 22px;
+    }
+    .modal-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; }
+    .modal-header h3 { font-size: 15px; }
+    .modal-close { border: none; background: none; font-size: 18px; color: #94A3B8; cursor: pointer; }
+    .modal-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+    .modal-field label { display: block; font-size: 10px; color: #94A3B8; text-transform: uppercase; margin-bottom: 4px; }
+    .modal-field .val { font-size: 13px; font-weight: 600; }
 
 </style>
 </head>
@@ -682,7 +710,7 @@
     <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
 
     <!-- ================= ÁREA PRINCIPAL ================= -->
-    <div>
+    <div class="main-col">
 
         <header class="topbar">
             <button class="menu-toggle-btn" onclick="toggleSidebar()">☰</button>
@@ -1004,7 +1032,7 @@
                 <div class="table-wrap">
                     <table class="data-table">
                         <thead>
-                            <tr><th>Usuário</th><th>Tipo</th><th>Status</th><th>Ações</th></tr>
+                            <tr><th>Usuário</th><th>Tipo</th><th>Ações</th></tr>
                         </thead>
                         <tbody id="corpo-usuarios"></tbody>
                     </table>
@@ -1105,14 +1133,16 @@
     const usuarios = [
         <%
             for (usuarioModel u : listaUsuarios) {
-                String nomeEsc = u.getNome_usuario() == null ? "" : u.getNome_usuario().replace("\\", "\\\\").replace("'", "\\'");
-                String emailEsc = u.getEmail_usuario() == null ? "" : u.getEmail_usuario().replace("\\", "\\\\").replace("'", "\\'");
+                String nomeEsc = js(u.getNome_usuario());
+                String emailEsc = js(u.getEmail_usuario());
         %>
         {
             id: <%= u.getId_usuario() %>,
             nome: '<%= nomeEsc %>',
             email: '<%= emailEsc %>',
-            tipo: '<%= rotuloTipo(u.getTipo_usuario()) %>'
+            tipo: '<%= rotuloTipo(u.getTipo_usuario()) %>',
+            cpf: '<%= u.getCPF_usuario() == null ? "" : u.getCPF_usuario() %>',
+            telefone: '<%= js(u.getTelefone()) %>'
         },
         <%
             }
@@ -1142,7 +1172,7 @@
         const base = '${pageContext.request.contextPath}/usuarioController';
 
         document.getElementById('corpo-usuarios').innerHTML = filtrados.map(u => `
-            <tr>
+            <tr style="cursor:pointer;" onclick="abrirDetalheUsuario(\${u.id})">
                 <td>
                     <div style="display:flex; align-items:center; gap:10px;">
                         <div class="avatar" style="width:30px;height:30px;font-size:11px;background:linear-gradient(135deg,#64748B,#1E293B);">\${iniciaisDe(u.nome)}</div>
@@ -1153,8 +1183,7 @@
                     </div>
                 </td>
                 <td><span class="type-pill \${tipoClasse[u.tipo]}">\${u.tipo}</span></td>
-                <td><span class="status-pill">Ativo</span></td>
-                <td>
+                <td onclick="event.stopPropagation();">
                     <a href="\${base}?action=redefinirSenha&id=\${u.id}"
                        style="color:#2563EB; font-weight:600;"
                        onclick="return confirm('Redefinir a senha deste usuário para a senha temporária padrão?');">Redefinir senha</a>
@@ -1186,7 +1215,64 @@
         renderizarUsuarios();
     });
 
+    // =========================================================
+    // DETALHES DO USUÁRIO (modal)
+    // =========================================================
+
+    function abrirDetalheUsuario(id) {
+        const u = usuarios.find(x => x.id === id);
+        if (!u) return;
+
+        document.getElementById('du_nome').textContent = u.nome;
+        document.getElementById('du_avatar').textContent = iniciaisDe(u.nome);
+        document.getElementById('du_email').textContent = u.email;
+        document.getElementById('du_tipo').textContent = u.tipo;
+        document.getElementById('du_cpf').textContent = u.cpf || '—';
+        document.getElementById('du_telefone').textContent = u.telefone || '—';
+
+        const base = '${pageContext.request.contextPath}/usuarioController';
+        document.getElementById('du_redefinir').href = base + '?action=redefinirSenha&id=' + u.id;
+        document.getElementById('du_excluir').href = base + '?action=excluir&id=' + u.id;
+
+        document.getElementById('modalDetalheUsuario').classList.add('open');
+    }
+
+    function fecharModal(id) {
+        document.getElementById(id).classList.remove('open');
+    }
+
 </script>
+
+<!-- ================= MODAL: DETALHES DO USUÁRIO ================= -->
+<div class="modal-overlay" id="modalDetalheUsuario">
+    <div class="modal-box">
+        <div class="modal-header">
+            <div style="display:flex; align-items:center; gap:12px;">
+                <div class="avatar" id="du_avatar" style="width:44px;height:44px;font-size:15px;background:linear-gradient(135deg,#64748B,#1E293B);">—</div>
+                <div>
+                    <h3 id="du_nome">—</h3>
+                    <span style="font-size:11px; color:#94A3B8;" id="du_email">—</span>
+                </div>
+            </div>
+            <button class="modal-close" onclick="fecharModal('modalDetalheUsuario')">×</button>
+        </div>
+
+        <div class="modal-row">
+            <div class="modal-field"><label>Tipo de conta</label><div class="val" id="du_tipo">—</div></div>
+            <div class="modal-field"><label>CPF</label><div class="val" id="du_cpf">—</div></div>
+        </div>
+        <div class="modal-row">
+            <div class="modal-field" style="grid-column:1/-1;"><label>Telefone</label><div class="val" id="du_telefone">—</div></div>
+        </div>
+
+        <div class="modal-footer" style="display:flex; justify-content:space-between; margin-top:16px;">
+            <a id="du_redefinir" href="#" style="color:#2563EB; font-weight:600; font-size:13px;"
+               onclick="return confirm('Redefinir a senha deste usuário para a senha temporária padrão?');">Redefinir senha</a>
+            <a id="du_excluir" href="#" style="color:#DC2626; font-weight:600; font-size:13px;"
+               onclick="return confirm('Excluir este usuário? Essa ação não pode ser desfeita.');">Excluir usuário</a>
+        </div>
+    </div>
+</div>
 
 </body>
 </html>

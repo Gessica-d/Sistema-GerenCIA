@@ -12,12 +12,12 @@ public class contratoDAO {
 
     private Connection conexao;
 
-    // Construtor da conexão com o BD
+    // Construtor da conexão 
     public contratoDAO(Connection conexao) {
         this.conexao = conexao;
     }
 
-    // ================= ADICIONAR CONTRATO =================
+    // add contrato
     public void adicionarContrato(contratoModel contrato) throws Exception {
 
         String sql = "INSERT INTO contrato "
@@ -43,7 +43,7 @@ public class contratoDAO {
         stmt.close();
     }
 
-    // ================= LISTAR CONTRATOS =================
+    // listar contratos
     public List<contratoModel> listarContratos() throws Exception {
 
         List<contratoModel> contratos = new ArrayList<>();
@@ -77,7 +77,7 @@ public class contratoDAO {
         return contratos;
     }
 
-    // ================= BUSCAR CONTRATO POR ID =================
+    // buscar contratos por id
     public contratoModel buscarPorId(int idContrato) throws Exception {
 
         String sql = "SELECT * FROM contrato WHERE id_contrato = ?";
@@ -112,7 +112,7 @@ public class contratoDAO {
         return contrato;
     }
 
-    // ================= ATUALIZAR CONTRATO =================
+    // atualizar contratos
     public void atualizarContrato(contratoModel contrato) throws Exception {
 
         String sql = "UPDATE contrato SET "
@@ -145,7 +145,7 @@ public class contratoDAO {
         stmt.close();
     }
 
-    // ================= EXCLUIR CONTRATO =================
+    // excluir contratos
     public void excluirContrato(int idContrato) throws Exception {
 
         String sql = "DELETE FROM contrato WHERE id_contrato = ?";

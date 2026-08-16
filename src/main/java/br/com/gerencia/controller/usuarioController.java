@@ -23,10 +23,6 @@ public class usuarioController extends HttpServlet {
 
     private usuarioDAO usuarioDAO;
 
-    // =====================================================
-    // INIT
-    // =====================================================
-
     @Override
     public void init() {
 
@@ -44,10 +40,7 @@ public class usuarioController extends HttpServlet {
         }
     }
 
-    // =====================================================
-    // GET
-    // =====================================================
-
+   
     @Override
     protected void doGet(
             HttpServletRequest request,
@@ -84,9 +77,6 @@ public class usuarioController extends HttpServlet {
         }
     }
 
-    // =====================================================
-    // POST
-    // =====================================================
 
     @Override
     protected void doPost(
@@ -149,9 +139,8 @@ public class usuarioController extends HttpServlet {
         }
     }
 
-    // =====================================================
-    // CADASTRAR USUÁRIO
-    // =====================================================
+
+    // Cadastrar user
 
     private void cadastrarUsuario(
             HttpServletRequest request,
@@ -236,23 +225,17 @@ public class usuarioController extends HttpServlet {
 
         usuarioDAO.adicionarUsuario(usuario);
 
-        // =================================================
+       
         // APÓS CADASTRAR
-        // =================================================
-
+        
         response.sendRedirect(
             request.getContextPath()
             + "/pages/loginUsuario.jsp"
         );
     }
 
-    // =====================================================
-    // CADASTRAR USUÁRIO (PELO ADMIN)
-    // Igual ao cadastro público, mas o admin escolhe
-    // livremente o tipo_usuario (admin/organizador/usuarioFinal)
-    // e volta pro painel administrativo, não pro login.
-    // =====================================================
-
+    // cadastro admin
+    
     private void cadastrarUsuarioAdmin(
             HttpServletRequest request,
             HttpServletResponse response)
@@ -340,9 +323,7 @@ public class usuarioController extends HttpServlet {
         );
     }
 
-    // =====================================================
-    // LOGIN
-    // =====================================================
+    // login
 
     private void autenticarUsuario(
             HttpServletRequest request,
@@ -355,9 +336,7 @@ public class usuarioController extends HttpServlet {
         String senha =
             request.getParameter("senha_usuario");
 
-        // =================================================
-        // VALIDAÇÃO
-        // =================================================
+        // validar login
 
         if (email == null || email.isBlank()
                 || senha == null || senha.isBlank()) {
@@ -377,9 +356,7 @@ public class usuarioController extends HttpServlet {
             return;
         }
 
-        // =================================================
-        // BUSCAR USUÁRIO
-        // =================================================
+        // buscar user
 
         usuarioModel usuario =
             usuarioDAO.buscarPorEmailESenha(
@@ -387,10 +364,7 @@ public class usuarioController extends HttpServlet {
                 senha
             );
 
-        // =================================================
-        // LOGIN CORRETO
-        // =================================================
-
+        //login correto
         if (usuario != null) {
 
             HttpSession session =
@@ -416,9 +390,7 @@ public class usuarioController extends HttpServlet {
 
         }
 
-        // =================================================
-        // LOGIN INCORRETO
-        // =================================================
+        // login errado 
 
         else {
 
@@ -436,9 +408,7 @@ public class usuarioController extends HttpServlet {
         }
     }
 
-    // =====================================================
-    // ALTERAR SENHA
-    // =====================================================
+    // mudar senha
 
     private void alterarSenha(
             HttpServletRequest request,
@@ -532,12 +502,7 @@ public class usuarioController extends HttpServlet {
         );
     }
 
-    // =====================================================
-    // REDEFINIR SENHA (PELO ADMIN)
-    // Diferente de "alterarSenha": o admin não precisa saber
-    // a senha atual do usuário. Define uma senha temporária
-    // fixa e devolve isso numa mensagem flash na sessão.
-    // =====================================================
+    // admin redefine senha
 
     private void redefinirSenhaAdmin(
             HttpServletRequest request,
@@ -583,10 +548,7 @@ public class usuarioController extends HttpServlet {
         );
     }
 
-    // =====================================================
-    // EXCLUIR USUÁRIO
-    // =====================================================
-
+    // excluir usuario
     private void excluirUsuario(
             HttpServletRequest request,
             HttpServletResponse response)
@@ -613,11 +575,7 @@ public class usuarioController extends HttpServlet {
         );
     }
 
-    // =====================================================
-    // ATUALIZAR (usado pela tela "Meu Perfil" em todos os
-    // painéis). Só mexe em nome/e-mail/telefone — CPF, tipo
-    // de conta e senha continuam como estavam.
-    // =====================================================
+    // atualizar info cadastro em "meu perfil"
     private void atualizarUsuario(HttpServletRequest request,
                                   HttpServletResponse response)
             throws Exception {
@@ -683,12 +641,10 @@ public class usuarioController extends HttpServlet {
         response.sendRedirect(request.getContextPath() + destino);
     }
 
-    // =====================================================
-    // RECUPERAR SENHA (tela "Esqueci minha senha")
-    // Sem servidor de e-mail configurado no projeto, então a
+   
+    // esqueci minha senha 
     // senha temporária é exibida na própria tela de confirmação
-    // em vez de enviada por e-mail.
-    // =====================================================
+
     private void recuperarSenha(HttpServletRequest request,
                                 HttpServletResponse response)
             throws Exception {
@@ -754,9 +710,7 @@ public class usuarioController extends HttpServlet {
         );
     }
 
-    // =====================================================
-    // LISTAR USUÁRIOS
-    // =====================================================
+    // listar users
 
     private void listarUsuarios(
             HttpServletRequest request,

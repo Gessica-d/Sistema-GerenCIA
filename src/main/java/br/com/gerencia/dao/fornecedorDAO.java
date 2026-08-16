@@ -12,20 +12,21 @@ public class fornecedorDAO {
 
     private Connection conexao;
 
-    // Construtor da conexão com o BD
+    // Construtor da conexão 
     public fornecedorDAO(Connection conexao) {
         this.conexao = conexao;
     }
 
-    // ================= ADICIONAR FORNECEDOR =================
-    public void adicionarFornecedor(fornecedorModel fornecedor) throws Exception {
+    // add fornecedor
+   
+    public int adicionarFornecedor(fornecedorModel fornecedor) throws Exception {
 
         String sql = "INSERT INTO fornecedor "
                    + "(nome_fornecedor, CNPJ_fornecedor, telefone_fornecedor, "
                    + "categoria_fornecedor, email) "
                    + "VALUES (?, ?, ?, ?, ?)";
 
-        PreparedStatement stmt = conexao.prepareStatement(sql);
+        PreparedStatement stmt = conexao.prepareStatement(sql, PreparedStatement.RETURN_GENERATED_KEYS);
 
         stmt.setString(1, fornecedor.getNome_fornecedor());
         stmt.setString(2, fornecedor.getCNPJ_fornecedor());
@@ -35,10 +36,18 @@ public class fornecedorDAO {
 
         stmt.executeUpdate();
 
+        int idGerado = 0;
+        ResultSet keys = stmt.getGeneratedKeys();
+        if (keys.next()) {
+            idGerado = keys.getInt(1);
+        }
+        keys.close();
         stmt.close();
+
+        return idGerado;
     }
 
-    // ================= LISTAR FORNECEDORES =================
+    // listar fornecedores
     public List<fornecedorModel> listarFornecedores() throws Exception {
 
         List<fornecedorModel> fornecedores = new ArrayList<>();
@@ -68,7 +77,7 @@ public class fornecedorDAO {
         return fornecedores;
     }
 
-    // ================= BUSCAR FORNECEDOR POR ID =================
+    // buscar fornecedores por id
     public fornecedorModel buscarPorId(int idFornecedor) throws Exception {
 
         String sql = "SELECT * FROM fornecedor WHERE id_fornecedor = ?";
@@ -99,7 +108,7 @@ public class fornecedorDAO {
         return fornecedor;
     }
 
-    // ================= BUSCAR FORNECEDOR POR CNPJ (checagem de duplicidade) =================
+    // buscar fornecedor por cnpj nao repete
     public fornecedorModel buscarPorCNPJ(String cnpj) throws Exception {
 
         String sql = "SELECT * FROM fornecedor WHERE CNPJ_fornecedor = ?";
@@ -130,7 +139,7 @@ public class fornecedorDAO {
         return fornecedor;
     }
 
-    // ================= ATUALIZAR FORNECEDOR =================
+    // atualizar fornecedor
     public void atualizarFornecedor(fornecedorModel fornecedor) throws Exception {
 
         String sql = "UPDATE fornecedor SET "
@@ -155,7 +164,7 @@ public class fornecedorDAO {
         stmt.close();
     }
 
-    // ================= EXCLUIR FORNECEDOR =================
+    // excluir fornecedor
     public void excluirFornecedor(int idFornecedor) throws Exception {
 
         String sql = "DELETE FROM fornecedor WHERE id_fornecedor = ?";

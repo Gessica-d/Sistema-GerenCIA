@@ -23,7 +23,7 @@ public class favoritoController extends HttpServlet {
 
     private favoritoDAO favoritoDAO;
 
-    // ================= INIT =================
+ 
     @Override
     public void init() {
 
@@ -41,7 +41,7 @@ public class favoritoController extends HttpServlet {
         }
     }
 
-    // ================= GET =================
+    // GET
     @Override
     protected void doGet(HttpServletRequest request,
                          HttpServletResponse response)
@@ -71,7 +71,7 @@ public class favoritoController extends HttpServlet {
         }
     }
 
-    // ================= POST =================
+    //  POST 
     @Override
     protected void doPost(HttpServletRequest request,
                           HttpServletResponse response)
@@ -108,7 +108,7 @@ public class favoritoController extends HttpServlet {
         }
     }
 
-    // ================= CADASTRAR =================
+    // CADASTRAR 
     private void cadastrarFavorito(HttpServletRequest request,
                                    HttpServletResponse response)
             throws Exception {
@@ -191,7 +191,7 @@ public class favoritoController extends HttpServlet {
 
         response.sendRedirect(
             request.getContextPath()
-            + "/favoritoController?action=listar"
+            + "/pages/home.jsp?view=favoritos"
         );
     }
 
@@ -287,7 +287,7 @@ public class favoritoController extends HttpServlet {
 
         response.sendRedirect(
             request.getContextPath()
-            + "/favoritoController?action=listar"
+            + "/pages/home.jsp?view=favoritos"
         );
     }
 

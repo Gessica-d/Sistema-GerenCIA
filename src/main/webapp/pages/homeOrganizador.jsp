@@ -94,7 +94,7 @@
 <%!
     private String js(String s) {
         if (s == null) return "";
-        return s.replace("\\", "\\\\").replace("'", "\\'").replace("\r", " ").replace("\n", " ");
+        return s.replace("\\", "\\\\").replace("'", "\\'").replace("\r", " ").replace("\n", " ").replace("</", "<\\/");
     }
     private String rotuloTipoConta(String tipo) {
         if ("organizador".equals(tipo)) return "Organizador";
@@ -208,6 +208,7 @@
         display: grid;
         grid-template-columns: 226px 1fr;
         height: 100vh;
+        min-width: 0;
     }
 
     .sidebar {
@@ -313,6 +314,7 @@
         flex-direction: column;
         height: 100vh;
         overflow: hidden;
+        min-width: 0;
     }
 
     .topbar {
@@ -1075,62 +1077,9 @@
 
                     </form>
 
-                    <div class="field">
-                        <label>Fornecedores vinculados <span class="hint">o vínculo é feito depois, na tela de detalhes do evento (contrato)</span></label>
-                        <div style="display:flex; gap:8px; align-items:center;">
-                            <select class="filter-select" style="flex:1; height:38px;">
-                                <option>Selecionar fornecedor existente...</option>
-                                <%
-                                    for (fornecedorModel f : todosFornecedores) {
-                                %>
-                                <option><%= f.getNome_fornecedor() %></option>
-                                <%
-                                    }
-                                %>
-                            </select>
-                            <button type="button" class="btn-outline" onclick="document.getElementById('inlineFornecedorBox').classList.toggle('open')">+ Cadastrar Novo Fornecedor</button>
-                        </div>
-
-                        <div class="inline-fornecedor-box" id="inlineFornecedorBox">
-                            <h4>Novo fornecedor</h4>
-                            <form action="${pageContext.request.contextPath}/fornecedorController" method="post">
-                                <input type="hidden" name="action" value="novo">
-                                <div class="fields-row-2">
-                                    <div class="field">
-                                        <label>Nome <span class="req">*</span></label>
-                                        <input type="text" name="nome_fornecedor" required>
-                                    </div>
-                                    <div class="field">
-                                        <label>CNPJ</label>
-                                        <input type="text" name="CNPJ_fornecedor" maxlength="14">
-                                    </div>
-                                </div>
-                                <div class="fields-row-2">
-                                    <div class="field">
-                                        <label>Telefone</label>
-                                        <input type="text" name="telefone_fornecedor" maxlength="11">
-                                    </div>
-                                    <div class="field">
-                                        <label>Categoria</label>
-                                        <select name="categoria_fornecedor">
-                                            <option value="audioVisual">Audiovisual</option>
-                                            <option value="buffet">Buffet</option>
-                                            <option value="decoracao">Decoração</option>
-                                            <option value="fotografia">Fotografia</option>
-                                            <option value="seguranca">Segurança</option>
-                                            <option value="limpeza">Limpeza</option>
-                                            <option value="locaoEspaco">Locação de Espaço</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="field">
-                                    <label>E-mail <span class="req">*</span></label>
-                                    <input type="email" name="email" required>
-                                </div>
-                                <button type="submit" class="btn-solid">Cadastrar e Vincular</button>
-                                <button type="button" class="btn-outline" onclick="document.getElementById('inlineFornecedorBox').classList.remove('open')">Cancelar</button>
-                            </form>
-                        </div>
+                    <div style="background:#EFF6FF; border:1px solid #BFDBFE; border-radius:10px; padding:12px 14px; font-size:12px; color:#1D4ED8;">
+                        ℹ️ Depois de salvar, você será levado direto pros detalhes do evento — é lá que você vincula fornecedores
+                        (com contrato e anexo de documento) e publica o evento.
                     </div>
 
                 </div>
@@ -1148,6 +1097,8 @@
                     <div><h1 id="det_ev_nome">—</h1></div>
                     <div class="header-actions">
                         <span class="status-pill" id="det_ev_status">Ativo</span>
+                        <a class="btn-solid" id="det_ev_publicar_btn" style="display:none;" href="#"
+                           onclick="return confirm('Publicar este evento? Ele ficará visível/ativo pros participantes.');">🚀 Publicar evento</a>
                         <button class="btn-outline" onclick="exportarPDF('detalheEvento')">⬇ Exportar</button>
                     </div>
                 </div>
@@ -1775,7 +1726,13 @@
     (function abrirViewInicial() {
         const params = new URLSearchParams(window.location.search);
         const view = params.get('view');
-        if (view) mudarViewById(view);
+        const abrirEvento = params.get('abrirEvento');
+
+        if (abrirEvento) {
+            abrirDetalheEvento(parseInt(abrirEvento, 10));
+        } else if (view) {
+            mudarViewById(view);
+        }
     })();
 
     // =========================================================
@@ -1865,6 +1822,14 @@
         document.getElementById('det_ev_inscritos').textContent = ev.inscritos + ' (' + ev.pct + '%)';
         document.getElementById('det_ev_codigo').textContent = ev.codigo;
         document.getElementById('det_ev_descricao').textContent = ev.descricao || '—';
+
+        const publicarBtn = document.getElementById('det_ev_publicar_btn');
+        if (ev.status === 'rascunho') {
+            publicarBtn.style.display = 'inline-flex';
+            publicarBtn.href = '${pageContext.request.contextPath}/eventoController?action=publicar&id=' + id;
+        } else {
+            publicarBtn.style.display = 'none';
+        }
 
         const vinculados = contratosData.filter(c => c.idEvento === id);
 

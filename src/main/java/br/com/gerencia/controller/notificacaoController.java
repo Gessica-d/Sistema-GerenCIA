@@ -25,7 +25,7 @@ public class notificacaoController extends HttpServlet {
 
     private notificacaoDAO notificacaoDAO;
 
-    // ================= INIT =================
+  
     @Override
     public void init() {
 
@@ -43,7 +43,7 @@ public class notificacaoController extends HttpServlet {
         }
     }
 
-    // ================= GET =================
+    // get
     @Override
     protected void doGet(HttpServletRequest request,
                          HttpServletResponse response)
@@ -73,7 +73,7 @@ public class notificacaoController extends HttpServlet {
         }
     }
 
-    // ================= POST =================
+    // post
     @Override
     protected void doPost(HttpServletRequest request,
                           HttpServletResponse response)
@@ -114,7 +114,7 @@ public class notificacaoController extends HttpServlet {
         }
     }
 
-    // ================= CADASTRAR =================
+    //cadastrar
     private void cadastrarNotificacao(HttpServletRequest request,
                                       HttpServletResponse response)
             throws Exception {
@@ -164,7 +164,7 @@ public class notificacaoController extends HttpServlet {
         );
     }
 
-    // ================= MARCAR TODAS COMO LIDAS (usuário logado) =================
+    // marcar como lida
     private void marcarTodasComoLidas(HttpServletRequest request,
                                       HttpServletResponse response)
             throws Exception {
@@ -193,7 +193,7 @@ public class notificacaoController extends HttpServlet {
         response.sendRedirect(request.getContextPath() + voltarPara);
     }
 
-    // ================= EXCLUIR =================
+    // excluir
     private void excluirNotificacao(HttpServletRequest request,
                                     HttpServletResponse response)
             throws Exception {
@@ -214,7 +214,7 @@ public class notificacaoController extends HttpServlet {
         );
     }
 
-    // ================= LISTAR =================
+    // listar
     private void listarNotificacoes(HttpServletRequest request,
                                     HttpServletResponse response)
             throws Exception {

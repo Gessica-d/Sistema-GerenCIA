@@ -12,12 +12,12 @@ public class favoritoDAO {
 
     private Connection conexao;
 
-    // Construtor da conexão com o BD
+    // Construtor da conexão 
     public favoritoDAO(Connection conexao) {
         this.conexao = conexao;
     }
 
-    // ================= ADICIONAR FAVORITO =================
+    // add favorito
     public void adicionarFavorito(favoritoModel favorito) throws Exception {
 
         String sql = "INSERT INTO favorito "
@@ -35,7 +35,7 @@ public class favoritoDAO {
         stmt.close();
     }
 
-    // ================= LISTAR FAVORITOS =================
+    // listar favoritos
     public List<favoritoModel> listarFavoritos() throws Exception {
 
         List<favoritoModel> favoritos = new ArrayList<>();
@@ -62,7 +62,7 @@ public class favoritoDAO {
         return favoritos;
     }
 
-    // ================= BUSCAR FAVORITO =================
+    // buscar favoritos
     public favoritoModel buscarFavorito(int idUsuario, int idEvento) throws Exception {
 
         String sql = "SELECT * FROM favorito "
@@ -92,7 +92,7 @@ public class favoritoDAO {
         return favorito;
     }
 
-    // ================= EXCLUIR FAVORITO =================
+    // excluir favoritos
     public void excluirFavorito(int idUsuario, int idEvento) throws Exception {
 
         String sql = "DELETE FROM favorito "

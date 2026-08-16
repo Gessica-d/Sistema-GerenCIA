@@ -12,13 +12,14 @@ public class eventoDAO {
 
     private Connection conexao;
 
-    // Construtor da conexão com o BD
+    // Construtor da conexão 
     public eventoDAO(Connection conexao) {
         this.conexao = conexao;
     }
 
-    // ================= ADICIONAR EVENTO =================
-    public void adicionarEvento(eventoModel evento) throws Exception {
+    // add evento
+  
+    public int adicionarEvento(eventoModel evento) throws Exception {
 
         String sql = "INSERT INTO evento "
                    + "(nome_evento, tipo_evento, inicio_evento, fim_evento, "
@@ -26,7 +27,7 @@ public class eventoDAO {
                    + "descricao_evento, status_evento, categoria_evento, id_organizador) "
                    + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
-        PreparedStatement stmt = conexao.prepareStatement(sql);
+        PreparedStatement stmt = conexao.prepareStatement(sql, PreparedStatement.RETURN_GENERATED_KEYS);
 
         stmt.setString(1, evento.getNome_evento());
         stmt.setString(2, evento.getTipo_evento());
@@ -42,10 +43,18 @@ public class eventoDAO {
 
         stmt.executeUpdate();
 
+        int idGerado = 0;
+        ResultSet keys = stmt.getGeneratedKeys();
+        if (keys.next()) {
+            idGerado = keys.getInt(1);
+        }
+        keys.close();
         stmt.close();
+
+        return idGerado;
     }
 
-    // ================= LISTAR EVENTOS =================
+    // listar eventos
     public List<eventoModel> listarEventos() throws Exception {
 
         List<eventoModel> eventos = new ArrayList<>();
@@ -81,7 +90,7 @@ public class eventoDAO {
         return eventos;
     }
 
-    // ================= BUSCAR EVENTO POR ID =================
+    // buscar eventos por id
     public eventoModel buscarPorId(int idEvento) throws Exception {
 
         String sql = "SELECT * FROM evento WHERE id_evento = ?";
@@ -118,7 +127,7 @@ public class eventoDAO {
         return evento;
     }
 
-    // ================= ATUALIZAR EVENTO =================
+    // atualizar eventos
     public void atualizarEvento(eventoModel evento) throws Exception {
 
         String sql = "UPDATE evento SET "
@@ -155,7 +164,22 @@ public class eventoDAO {
         stmt.close();
     }
 
-    // ================= EXCLUIR EVENTO =================
+    // atualizar status
+    public void atualizarStatus(int idEvento, String novoStatus) throws Exception {
+
+        String sql = "UPDATE evento SET status_evento = ? WHERE id_evento = ?";
+
+        PreparedStatement stmt = conexao.prepareStatement(sql);
+
+        stmt.setString(1, novoStatus);
+        stmt.setInt(2, idEvento);
+
+        stmt.executeUpdate();
+
+        stmt.close();
+    }
+
+    // excluir evento
     public void excluirEvento(int idEvento) throws Exception {
 
         String sql = "DELETE FROM evento WHERE id_evento = ?";

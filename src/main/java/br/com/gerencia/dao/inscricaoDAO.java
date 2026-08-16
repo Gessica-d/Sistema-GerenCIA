@@ -231,6 +231,51 @@ public class inscricaoDAO {
         return total;
     }
 
+    // ================= QUANTIDADE NA LISTA DE ESPERA DE UM EVENTO =================
+    public int contarEspera(int idEvento) throws Exception {
+
+        String sql = "SELECT COUNT(*) AS total FROM inscricao "
+                   + "WHERE id_evento = ? AND status_inscricao = 'Espera'";
+
+        PreparedStatement stmt = conexao.prepareStatement(sql);
+        stmt.setInt(1, idEvento);
+
+        ResultSet rs = stmt.executeQuery();
+
+        int total = 0;
+
+        if (rs.next()) {
+            total = rs.getInt("total");
+        }
+
+        rs.close();
+        stmt.close();
+
+        return total;
+    }
+
+    // ================= ATUALIZAR SOMENTE O CHECK-IN =================
+    // Usado no momento em que o usuário efetivamente realiza o check-in
+    // no evento (deve respeitar a janela de tempo do evento, validada
+    // na camada de controller antes de chamar este método).
+    public void atualizarCheckin(int idInscricao, java.time.LocalDateTime checkin) throws Exception {
+
+        String sql = "UPDATE inscricao SET checkin = ? WHERE id_inscricao = ?";
+
+        PreparedStatement stmt = conexao.prepareStatement(sql);
+
+        if (checkin != null) {
+            stmt.setTimestamp(1, Timestamp.valueOf(checkin));
+        } else {
+            stmt.setNull(1, java.sql.Types.TIMESTAMP);
+        }
+        stmt.setInt(2, idInscricao);
+
+        stmt.executeUpdate();
+
+        stmt.close();
+    }
+
     // ================= LISTAR INSCRIÇÕES DE UM EVENTO POR STATUS =================
     public List<inscricaoModel> listarPorEventoEStatus(int idEvento, String status) throws Exception {
 
