@@ -50,6 +50,12 @@
         nomeOrganizadorPorId.put(u.getId_usuario(), u.getNome_usuario());
     }
 
+    // organizadores distintos que têm ao menos 1 evento (para o filtro da subtela Eventos)
+    java.util.TreeSet<String> organizadoresComEvento = new java.util.TreeSet<String>();
+    for (eventoModel evOrg : listaEventosAdmin) {
+        organizadoresComEvento.add(nomeOrganizadorPorId.getOrDefault(evOrg.getId_organizador(), "—"));
+    }
+
     // agregados do dashboard (tudo calculado a partir dos dados acima, nada fixo)
     int totalUsuarios = listaUsuarios.size();
 
@@ -145,6 +151,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>GerenCIA - Painel Administrativo</title>
 
+<script>
+    if (localStorage.getItem('gerencia-tema') === 'escuro') {
+        document.documentElement.classList.add('dark-mode');
+    }
+</script>
+
+<!-- Ajuste automático de proporções para qualquer tamanho de tela -->
+<script src="${pageContext.request.contextPath}/js/responsivo.js"></script>
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -155,17 +170,12 @@
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
-    html {
-        overflow-x: hidden;
-        width: 100%;
-    }
-
-    body {
+    html, body {
+        height: 100%;
         font-family: 'Inter', Arial, Helvetica, sans-serif;
         color: #0F172A;
         background: #F8FAFC;
-        overflow-x: hidden;
-        width: 100%;
+        overflow: hidden;
     }
 
     a { text-decoration: none; color: inherit; }
@@ -176,13 +186,16 @@
     .app {
         display: grid;
         grid-template-columns: 230px 1fr;
-        min-height: 100vh;
+        height: calc(var(--vh, 1vh) * 100);
         min-width: 0;
     }
 
     .main-col {
         min-width: 0;
-        overflow-x: hidden;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        height: calc(var(--vh, 1vh) * 100);
     }
 
     /* ================= SIDEBAR (ESCURA) ================= */
@@ -193,9 +206,8 @@
         display: flex;
         flex-direction: column;
         padding: 20px 14px;
-        position: sticky;
-        top: 0;
-        height: 100vh;
+        height: calc(var(--vh, 1vh) * 100);
+        overflow-y: auto;
     }
 
     .sidebar-logo {
@@ -215,10 +227,10 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 16px;
+        font-size: 18px;
     }
 
-    .sidebar-logo span { font-size: 16px; font-weight: 700; }
+    .sidebar-logo span { font-size: 18px; font-weight: 700; }
 
     .nav-item {
         display: flex;
@@ -226,7 +238,7 @@
         gap: 10px;
         padding: 10px 12px;
         border-radius: 9px;
-        font-size: 14px;
+        font-size: 16px;
         font-weight: 500;
         color: #94A3B8;
         margin-bottom: 2px;
@@ -236,7 +248,7 @@
         text-align: left;
     }
 
-    .nav-item .nav-icon { font-size: 15px; width: 18px; text-align: center; }
+    .nav-item .nav-icon { font-size: 17px; width: 18px; text-align: center; }
     .nav-item .nav-label { flex: 1; }
 
     .nav-item:hover { background: #1E293B; color: #E2E8F0; }
@@ -262,7 +274,7 @@
         border-radius: 50%;
         background: linear-gradient(135deg, #64748B, #1E293B);
         color: #FFFFFF;
-        font-size: 12px;
+        font-size: 14px;
         font-weight: 700;
         display: flex;
         align-items: center;
@@ -270,12 +282,12 @@
         flex-shrink: 0;
     }
 
-    .sidebar-footer strong { display: block; font-size: 13px; color: #F1F5F9; }
-    .sidebar-footer small { display: block; font-size: 11px; color: #64748B; }
+    .sidebar-footer strong { display: block; font-size: 15px; color: #F1F5F9; }
+    .sidebar-footer small { display: block; font-size: 13px; color: #64748B; }
 
     .logout-btn {
         margin-left: auto;
-        font-size: 15px;
+        font-size: 17px;
         color: #64748B;
         background: none;
         border: none;
@@ -290,28 +302,28 @@
         display: flex;
         align-items: center;
         padding: 0 28px;
-        position: sticky;
-        top: 0;
-        z-index: 5;
+        flex-shrink: 0;
+        position: relative;
+        z-index: 10;
     }
 
-    .topbar-title strong { display: block; font-size: 14px; }
-    .topbar-title span { display: block; font-size: 11px; color: #94A3B8; }
+    .topbar-title strong { display: block; font-size: 16px; }
+    .topbar-title span { display: block; font-size: 13px; color: #94A3B8; }
 
     .topbar-user {
         margin-left: auto;
         display: flex;
         align-items: center;
         gap: 16px;
-        font-size: 13px;
+        font-size: 15px;
         font-weight: 600;
     }
 
-    .eye-icon { color: #94A3B8; font-size: 15px; }
+    .eye-icon { color: #94A3B8; font-size: 17px; }
 
     /* ================= CONTEÚDO ================= */
 
-    .content { padding: 28px; max-width: 1280px; }
+    .content { flex: 1; overflow-y: auto; padding: 28px; max-width: 1760px; width: 100%; }
 
     .view-section { display: none; }
     .view-section.active { display: block; }
@@ -325,8 +337,8 @@
         flex-wrap: wrap;
     }
 
-    .view-header h1 { font-size: 22px; }
-    .view-header p { color: #64748B; font-size: 13px; margin-top: 4px; }
+    .view-header h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.3px; }
+    .view-header p { color: #64748B; font-size: 15px; margin-top: 4px; }
 
     .header-actions { display: flex; gap: 10px; }
 
@@ -339,7 +351,7 @@
         border-radius: 8px;
         border: 1px solid #E2E8F0;
         background: #FFFFFF;
-        font-size: 13px;
+        font-size: 15px;
         font-weight: 600;
         color: #334155;
     }
@@ -356,7 +368,7 @@
         border: none;
         background: #2563EB;
         color: #FFFFFF;
-        font-size: 13px;
+        font-size: 15px;
         font-weight: 600;
     }
 
@@ -366,50 +378,86 @@
 
     .stats-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-        gap: 16px;
-        margin-bottom: 20px;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+        min-width: 0;
+        width: 100%;
     }
 
     .stat-card {
         background: #FFFFFF;
         border: 1px solid #E2E8F0;
-        border-radius: 12px;
-        padding: 18px;
+        border-left: 3px solid #7C3AED;
+        border-radius: 8px;
+        padding: 8px 9px;
+        transition: 0.15s;
     }
+    .stat-card:hover { box-shadow: 0 6px 16px rgba(124,58,237,0.14); transform: translateY(-1px); }
 
     .stat-card .row-top {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        margin-bottom: 14px;
+        margin-bottom: 3px;
+        gap: 4px;
     }
 
-    .stat-card .row-top span.label { font-size: 13px; color: #64748B; }
+    .stat-card .row-top span.label {
+        font-size: 9.5px; font-weight: 700; color: #64748B;
+        text-transform: uppercase; letter-spacing: 0.03em; line-height: 1.25;
+    }
 
     .stat-icon {
-        width: 34px;
-        height: 34px;
-        border-radius: 9px;
-        background: #F1F5F9;
-        color: #334155;
+        width: 16px;
+        height: 16px;
+        border-radius: 5px;
+        background: #F5F3FF;
+        color: #7C3AED;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 15px;
+        font-size: 9px;
+        flex-shrink: 0;
     }
 
-    .stat-card strong { font-size: 26px; display: block; margin-bottom: 4px; }
-    .stat-card .delta { font-size: 11px; color: #94A3B8; }
+    .stat-card strong { font-size: 19px; font-weight: 900; display: block; margin-bottom: 0; color: #0F172A; line-height: 1.15; letter-spacing: -0.01em; }
+    .stat-card .delta { font-size: 9px; color: #94A3B8; display: block; margin-top: 2px; }
+
+    /* Destaque por cor — cada indicador com sua própria identidade visual */
+    .stats-grid .stat-card:nth-child(1) { border-left-color: #7C3AED; background: linear-gradient(180deg, rgba(124,58,237,0.06), #FFFFFF 65%); }
+    .stats-grid .stat-card:nth-child(1) strong { color: #7C3AED; }
+    .stats-grid .stat-card:nth-child(1) .stat-icon { background: rgba(124,58,237,0.14); color: #7C3AED; }
+
+    .stats-grid .stat-card:nth-child(2) { border-left-color: #16A34A; background: linear-gradient(180deg, rgba(22,163,74,0.06), #FFFFFF 65%); }
+    .stats-grid .stat-card:nth-child(2) strong { color: #16A34A; }
+    .stats-grid .stat-card:nth-child(2) .stat-icon { background: rgba(22,163,74,0.14); color: #16A34A; }
+
+    .stats-grid .stat-card:nth-child(3) { border-left-color: #F59E0B; background: linear-gradient(180deg, rgba(245,158,11,0.08), #FFFFFF 65%); }
+    .stats-grid .stat-card:nth-child(3) strong { color: #F59E0B; }
+    .stats-grid .stat-card:nth-child(3) .stat-icon { background: rgba(245,158,11,0.16); color: #F59E0B; }
+
+    .stats-grid .stat-card:nth-child(4) { border-left-color: #2563EB; background: linear-gradient(180deg, rgba(37,99,235,0.06), #FFFFFF 65%); }
+    .stats-grid .stat-card:nth-child(4) strong { color: #2563EB; }
+    .stats-grid .stat-card:nth-child(4) .stat-icon { background: rgba(37,99,235,0.14); color: #2563EB; }
 
     /* ================= DASHBOARD: DUAS COLUNAS ================= */
 
     .dash-cols {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: 5fr 2fr;
         gap: 16px;
         margin-bottom: 20px;
-        align-items: start;
+    }
+
+    /* Coluna direita: cards (2x2) empilhados sobre "Usuários por tipo de conta",
+       alinhada ao painel da esquerda que agora ocupa toda a altura */
+    .dash-right-col {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        min-width: 0;
+        min-height: 0;
+        width: 100%;
     }
 
     .panel-card {
@@ -417,34 +465,52 @@
         border: 1px solid #E2E8F0;
         border-radius: 12px;
         padding: 20px;
-    }
-
-    .panel-card h3 { font-size: 14px; margin-bottom: 4px; }
-    .panel-card .hint { font-size: 11px; color: #94A3B8; margin-bottom: 16px; }
-
-    .donut-wrap { display: flex; align-items: center; gap: 20px; }
-
-    .legend-item {
         display: flex;
+        flex-direction: column;
+        min-height: 0;
+        min-width: 0;
+    }
+
+    .panel-card h3 { font-size: 16px; margin-bottom: 4px; }
+    .panel-card .hint { font-size: 13px; color: #94A3B8; margin-bottom: 16px; }
+
+    .vbar-wrap {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-evenly;
+        gap: 24px;
+        flex: 1;
+        min-height: 160px;
+        padding: 0 8px;
+    }
+
+    .vbar-col {
+        display: flex;
+        flex-direction: column;
         align-items: center;
-        gap: 8px;
-        font-size: 12px;
-        margin-bottom: 8px;
+        justify-content: flex-end;
+        height: 100%;
+        flex: 1;
+        max-width: 110px;
+        cursor: pointer;
     }
 
-    .legend-dot {
-        width: 9px;
-        height: 9px;
-        border-radius: 50%;
-        flex-shrink: 0;
-    }
+    .vbar-value { font-size: 13px; font-weight: 700; color: #0F172A; margin-bottom: 6px; }
 
-    .legend-item .pct { margin-left: auto; font-weight: 700; }
+    .vbar {
+        width: 44px;
+        border-radius: 14px;
+        transition: 0.15s;
+    }
+    .vbar-col:hover .vbar { transform: scaleX(1.08); }
+
+    .vbar-label { font-size: 12px; color: #64748B; margin-top: 10px; text-align: center; }
+    .vbar-count { font-size: 11px; color: #94A3B8; }
 
     .chart-legend-line {
         display: flex;
         gap: 16px;
-        font-size: 12px;
+        font-size: 14px;
         margin-bottom: 10px;
     }
 
@@ -461,18 +527,22 @@
     table.data-table {
         width: 100%;
         border-collapse: collapse;
-        font-size: 13px;
+        font-size: 15px;
     }
 
     table.data-table th {
         text-align: left;
-        font-size: 11px;
+        font-size: 13px;
         text-transform: uppercase;
         letter-spacing: 0.03em;
         color: #94A3B8;
         padding: 10px 8px;
         border-bottom: 1px solid #E2E8F0;
         white-space: nowrap;
+        position: sticky;
+        top: 0;
+        background: #FFFFFF;
+        z-index: 1;
     }
 
     table.data-table td {
@@ -482,7 +552,7 @@
     }
 
     .status-pill {
-        font-size: 11px;
+        font-size: 13px;
         font-weight: 600;
         padding: 3px 9px;
         border-radius: 6px;
@@ -494,7 +564,7 @@
     .status-pill.inativo { background: #FEE2E2; color: #B91C1C; }
 
     .type-pill {
-        font-size: 11px;
+        font-size: 13px;
         font-weight: 600;
         padding: 3px 9px;
         border-radius: 6px;
@@ -523,7 +593,7 @@
         padding: 0 14px;
         border-radius: 8px;
         border: 1px solid #E2E8F0;
-        font-size: 13px;
+        font-size: 15px;
     }
 
     select.filter-select {
@@ -531,7 +601,7 @@
         padding: 0 10px;
         border-radius: 8px;
         border: 1px solid #E2E8F0;
-        font-size: 13px;
+        font-size: 15px;
         background: #FFFFFF;
         color: #334155;
     }
@@ -544,7 +614,7 @@
         border-radius: 8px;
         border: 1px solid #E2E8F0;
         background: #FFFFFF;
-        font-size: 12px;
+        font-size: 14px;
         font-weight: 600;
         color: #475569;
     }
@@ -563,6 +633,12 @@
         gap: 16px;
     }
 
+    .back-link { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #64748B; margin-bottom: 10px; cursor: pointer; }
+    .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+    .detail-box { background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px 14px; }
+    .detail-box label { display: block; font-size: 10px; color: #94A3B8; text-transform: uppercase; margin-bottom: 4px; }
+    .detail-box .val { font-size: 15px; font-weight: 600; }
+
     .categoria-card {
         background: #FFFFFF;
         border: 1px solid #E2E8F0;
@@ -578,8 +654,8 @@
     }
 
     .categoria-card .dot { width: 12px; height: 12px; border-radius: 50%; }
-    .categoria-card strong { font-size: 15px; display: block; }
-    .categoria-card .count { font-size: 12px; color: #94A3B8; margin-top: 3px; }
+    .categoria-card strong { font-size: 17px; display: block; }
+    .categoria-card .count { font-size: 14px; color: #94A3B8; margin-top: 3px; }
 
     .categoria-card .bar {
         height: 6px;
@@ -597,7 +673,7 @@
         color: #92400E;
         border-radius: 10px;
         padding: 12px 16px;
-        font-size: 12px;
+        font-size: 14px;
         margin-bottom: 20px;
     }
 
@@ -608,7 +684,7 @@
         border: 1px solid #E2E8F0;
         background: #FFFFFF;
         color: #0F172A;
-        font-size: 16px;
+        font-size: 18px;
         align-items: center;
         justify-content: center;
         cursor: pointer;
@@ -660,11 +736,100 @@
         max-height: 90vh; overflow-y: auto; padding: 22px;
     }
     .modal-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; }
-    .modal-header h3 { font-size: 15px; }
-    .modal-close { border: none; background: none; font-size: 18px; color: #94A3B8; cursor: pointer; }
+    .modal-header h3 { font-size: 17px; }
+    .modal-close { border: none; background: none; font-size: 20px; color: #94A3B8; cursor: pointer; }
     .modal-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
-    .modal-field label { display: block; font-size: 10px; color: #94A3B8; text-transform: uppercase; margin-bottom: 4px; }
-    .modal-field .val { font-size: 13px; font-weight: 600; }
+    .modal-field label { display: block; font-size: 12px; color: #94A3B8; text-transform: uppercase; margin-bottom: 4px; }
+    .modal-field .val { font-size: 15px; font-weight: 600; }
+
+    /* =========================================================
+       MODO ESCURO
+       (a sidebar já é escura por padrão — o toggle escurece
+       principalmente a área de conteúdo, que hoje é clara)
+       ========================================================= */
+
+    .theme-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        margin-bottom: 2px;
+    }
+
+    .theme-row .nav-label { flex: 1; font-size: 13px; font-weight: 500; color: #94A3B8; }
+
+    .theme-switch { position: relative; width: 36px; height: 20px; flex-shrink: 0; }
+    .theme-switch input { opacity: 0; width: 0; height: 0; }
+    .theme-switch-slider {
+        position: absolute; inset: 0; background: #334155; border-radius: 20px;
+        cursor: pointer; transition: 0.2s;
+    }
+    .theme-switch-slider::before {
+        content: ""; position: absolute; width: 14px; height: 14px; left: 3px; top: 3px;
+        background: #FFFFFF; border-radius: 50%; transition: 0.2s;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
+    .theme-switch input:checked + .theme-switch-slider { background: #64748B; }
+    .theme-switch input:checked + .theme-switch-slider::before { transform: translateX(16px); }
+
+    html.dark-mode body { background: #0F172A; color: #E2E8F0; }
+
+    html.dark-mode .topbar { background: #0F172A; border-bottom-color: #1E293B; }
+    html.dark-mode .topbar-title strong { color: #E2E8F0; }
+    html.dark-mode .eye-icon { color: #64748B; }
+
+    html.dark-mode .stat-card,
+    html.dark-mode .panel-card,
+    html.dark-mode .categoria-card,
+    html.dark-mode .modal-box {
+        background: #1E293B;
+        border-color: #334155;
+    }
+
+    html.dark-mode .stat-card strong,
+    html.dark-mode .view-header h1,
+    html.dark-mode .modal-header h3,
+    html.dark-mode h3 {
+        color: #F1F5F9;
+    }
+
+    html.dark-mode .vbar-value { color: #F1F5F9; }
+
+    /* Destaque por cor dos cards — variantes para o modo escuro */
+    html.dark-mode .stats-grid .stat-card:nth-child(1) { background: linear-gradient(180deg, rgba(124,58,237,0.20), #1E293B 65%); }
+    html.dark-mode .stats-grid .stat-card:nth-child(1) strong { color: #A78BFA; }
+    html.dark-mode .stats-grid .stat-card:nth-child(2) { background: linear-gradient(180deg, rgba(22,163,74,0.20), #1E293B 65%); }
+    html.dark-mode .stats-grid .stat-card:nth-child(2) strong { color: #4ADE80; }
+    html.dark-mode .stats-grid .stat-card:nth-child(3) { background: linear-gradient(180deg, rgba(245,158,11,0.20), #1E293B 65%); }
+    html.dark-mode .stats-grid .stat-card:nth-child(3) strong { color: #FBBF24; }
+    html.dark-mode .stats-grid .stat-card:nth-child(4) { background: linear-gradient(180deg, rgba(37,99,235,0.20), #1E293B 65%); }
+    html.dark-mode .stats-grid .stat-card:nth-child(4) strong { color: #60A5FA; }
+
+    html.dark-mode table.data-table th { color: #94A3B8; border-bottom-color: #334155; background: #1E293B; }
+    html.dark-mode table.data-table td { border-bottom-color: #334155; color: #E2E8F0; }
+    html.dark-mode table.data-table tbody tr:hover { background: #263449; }
+
+    html.dark-mode input,
+    html.dark-mode select,
+    html.dark-mode textarea {
+        background: #0F172A;
+        border-color: #334155;
+        color: #E2E8F0;
+    }
+
+    html.dark-mode .btn-outline {
+        background: #1E293B;
+        border-color: #334155;
+        color: #E2E8F0;
+    }
+
+    html.dark-mode .btn-outline:hover { background: #334155; }
+
+    html.dark-mode .pill-btn { background: #1E293B; border-color: #334155; color: #94A3B8; }
+
+    html.dark-mode .note-box { background: #2A2410; border-color: #4B3E14; color: #FDE68A; }
+
+    html.dark-mode .empty-state { color: #64748B; }
 
 </style>
 </head>
@@ -681,19 +846,24 @@
         </div>
 
         <button class="nav-item active" data-view="dashboard" onclick="mudarView('dashboard', this)">
-            <span class="nav-icon">▦</span>
             <span class="nav-label">Dashboard</span>
         </button>
 
         <button class="nav-item" data-view="eventos" onclick="mudarView('eventos', this)">
-            <span class="nav-icon">📅</span>
             <span class="nav-label">Eventos</span>
         </button>
 
         <button class="nav-item" data-view="usuarios" onclick="mudarView('usuarios', this)">
-            <span class="nav-icon">👥</span>
             <span class="nav-label">Usuários</span>
         </button>
+
+        <div class="theme-row">
+            <span class="nav-label">Modo escuro</span>
+            <label class="theme-switch">
+                <input type="checkbox" id="themeToggle" onchange="alternarTema()">
+                <span class="theme-switch-slider"></span>
+            </label>
+        </div>
 
         <div class="sidebar-footer">
             <div class="avatar"><%= iniciais %></div>
@@ -739,46 +909,6 @@
                     </div>
                 </div>
 
-                <div class="stats-grid">
-
-                    <div class="stat-card">
-                        <div class="row-top">
-                            <span class="label">Total de usuários</span>
-                            <div class="stat-icon">👥</div>
-                        </div>
-                        <strong><%= totalUsuarios %></strong>
-                        <span class="delta"><%= totalClientesAdmin %> clientes · <%= totalOrganizadores %> organizadores · <%= totalAdmins %> admin(s)</span>
-                    </div>
-
-                    <div class="stat-card">
-                        <div class="row-top">
-                            <span class="label">Organizadores</span>
-                            <div class="stat-icon">🏢</div>
-                        </div>
-                        <strong><%= totalOrganizadores %></strong>
-                        <span class="delta">&nbsp;</span>
-                    </div>
-
-                    <div class="stat-card">
-                        <div class="row-top">
-                            <span class="label">Eventos na plataforma</span>
-                            <div class="stat-icon">📅</div>
-                        </div>
-                        <strong><%= totalEventosPlataforma %></strong>
-                        <span class="delta">&nbsp;</span>
-                    </div>
-
-                    <div class="stat-card">
-                        <div class="row-top">
-                            <span class="label">Total de inscrições confirmadas</span>
-                            <div class="stat-icon">📈</div>
-                        </div>
-                        <strong><%= totalInscricoesPlataforma %></strong>
-                        <span class="delta">&nbsp;</span>
-                    </div>
-
-                </div>
-
                 <div class="dash-cols">
 
                     <div class="panel-card">
@@ -788,59 +918,98 @@
                         <% if (totalEventosPlataforma == 0) { %>
                             <div class="empty-state">Nenhum evento cadastrado ainda.</div>
                         <% } else { %>
-                        <div class="donut-wrap">
+                        <div class="vbar-wrap">
 
-                            <svg viewBox="0 0 180 180" width="150" height="150">
-                                <g transform="rotate(-90 90 90)">
-                                    <circle cx="90" cy="90" r="70" fill="none" stroke="#2563EB" stroke-width="24"
-                                        stroke-dasharray="<%= lenTec %> <%= circDonut %>" stroke-dashoffset="<%= offTec %>" />
-                                    <circle cx="90" cy="90" r="70" fill="none" stroke="#10B981" stroke-width="24"
-                                        stroke-dasharray="<%= lenSoc %> <%= circDonut %>" stroke-dashoffset="<%= offSoc %>" />
-                                    <circle cx="90" cy="90" r="70" fill="none" stroke="#7C3AED" stroke-width="24"
-                                        stroke-dasharray="<%= lenCorp %> <%= circDonut %>" stroke-dashoffset="<%= offCorp %>" />
-                                </g>
-                            </svg>
+                            <div class="vbar-col" onclick="mudarView('eventos', document.querySelector('[data-view=eventos]')); filtrarEventosPorCategoria('tecCientifico');">
+                                <span class="vbar-value"><%= pctTecCientifico %>%</span>
+                                <div class="vbar" style="height:<%= pctTecCientifico > 0 ? pctTecCientifico + "%" : "4px" %>; background:#2563EB;"></div>
+                                <span class="vbar-label">TecCientifico<br><span class="vbar-count"><%= somaTecCientifico %> evento(s)</span></span>
+                            </div>
 
-                            <div style="flex:1;">
-                                <div class="legend-item" style="cursor:pointer;" onclick="mudarView('eventos', document.querySelector('[data-view=eventos]')); filtrarEventosPorCategoria('tecCientifico');">
-                                    <span class="legend-dot" style="background:#2563EB;"></span> TecCientifico <span class="pct"><%= pctTecCientifico %>% (<%= somaTecCientifico %>)</span>
-                                </div>
-                                <div class="legend-item" style="cursor:pointer;" onclick="mudarView('eventos', document.querySelector('[data-view=eventos]')); filtrarEventosPorCategoria('sociais');">
-                                    <span class="legend-dot" style="background:#10B981;"></span> Sociais <span class="pct"><%= pctSociais %>% (<%= somaSociais %>)</span>
-                                </div>
-                                <div class="legend-item" style="cursor:pointer;" onclick="mudarView('eventos', document.querySelector('[data-view=eventos]')); filtrarEventosPorCategoria('corporativos');">
-                                    <span class="legend-dot" style="background:#7C3AED;"></span> Corporativos <span class="pct"><%= pctCorporativos %>% (<%= somaCorporativos %>)</span>
-                                </div>
+                            <div class="vbar-col" onclick="mudarView('eventos', document.querySelector('[data-view=eventos]')); filtrarEventosPorCategoria('sociais');">
+                                <span class="vbar-value"><%= pctSociais %>%</span>
+                                <div class="vbar" style="height:<%= pctSociais > 0 ? pctSociais + "%" : "4px" %>; background:#10B981;"></div>
+                                <span class="vbar-label">Sociais<br><span class="vbar-count"><%= somaSociais %> evento(s)</span></span>
+                            </div>
+
+                            <div class="vbar-col" onclick="mudarView('eventos', document.querySelector('[data-view=eventos]')); filtrarEventosPorCategoria('corporativos');">
+                                <span class="vbar-value"><%= pctCorporativos %>%</span>
+                                <div class="vbar" style="height:<%= pctCorporativos > 0 ? pctCorporativos + "%" : "4px" %>; background:#7C3AED;"></div>
+                                <span class="vbar-label">Corporativos<br><span class="vbar-count"><%= somaCorporativos %> evento(s)</span></span>
                             </div>
 
                         </div>
                         <% } %>
                     </div>
 
-                    <div class="panel-card">
-                        <h3>Usuários por tipo de conta</h3>
-                        <p class="hint">Distribuição atual (sem histórico — o banco não guarda data de criação do usuário)</p>
+                    <div class="dash-right-col">
 
-                        <div style="display:flex; flex-direction:column; gap:12px; margin-top:10px;">
-                            <div>
-                                <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;">
-                                    <span>Clientes</span><strong><%= totalClientesAdmin %></strong>
+                        <div class="stats-grid">
+
+                            <div class="stat-card">
+                                <div class="row-top">
+                                    <span class="label">Total de usuários</span>
+                                    <div class="stat-icon"></div>
                                 </div>
-                                <div class="mini-bar" style="height:8px;"><span style="width:<%= totalUsuarios > 0 ? (totalClientesAdmin*100/totalUsuarios) : 0 %>%; background:#2563EB; display:block; height:100%; border-radius:4px;"></span></div>
+                                <strong><%= totalUsuarios %></strong>
+                                <span class="delta"><%= totalClientesAdmin %> clientes · <%= totalOrganizadores %> organizadores · <%= totalAdmins %> admin(s)</span>
                             </div>
-                            <div>
-                                <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;">
-                                    <span>Organizadores</span><strong><%= totalOrganizadores %></strong>
+
+                            <div class="stat-card">
+                                <div class="row-top">
+                                    <span class="label">Organizadores</span>
+                                    <div class="stat-icon"></div>
                                 </div>
-                                <div class="mini-bar" style="height:8px;"><span style="width:<%= totalUsuarios > 0 ? (totalOrganizadores*100/totalUsuarios) : 0 %>%; background:#7C3AED; display:block; height:100%; border-radius:4px;"></span></div>
+                                <strong><%= totalOrganizadores %></strong>
+                                <span class="delta">&nbsp;</span>
                             </div>
-                            <div>
-                                <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;">
-                                    <span>Admins</span><strong><%= totalAdmins %></strong>
+
+                            <div class="stat-card">
+                                <div class="row-top">
+                                    <span class="label">Eventos na plataforma</span>
+                                    <div class="stat-icon"></div>
                                 </div>
-                                <div class="mini-bar" style="height:8px;"><span style="width:<%= totalUsuarios > 0 ? (totalAdmins*100/totalUsuarios) : 0 %>%; background:#0F172A; display:block; height:100%; border-radius:4px;"></span></div>
+                                <strong><%= totalEventosPlataforma %></strong>
+                                <span class="delta">&nbsp;</span>
+                            </div>
+
+                            <div class="stat-card">
+                                <div class="row-top">
+                                    <span class="label">Total de inscrições confirmadas</span>
+                                    <div class="stat-icon"></div>
+                                </div>
+                                <strong><%= totalInscricoesPlataforma %></strong>
+                                <span class="delta">&nbsp;</span>
+                            </div>
+
+                        </div>
+
+                        <div class="panel-card" style="flex:1;">
+                            <h3>Usuários por tipo de conta</h3>
+                            <p class="hint">Distribuição atual (sem histórico — o banco não guarda data de criação do usuário)</p>
+
+                            <div style="display:flex; flex-direction:column; gap:12px; margin-top:10px;">
+                                <div>
+                                    <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;">
+                                        <span>Clientes</span><strong><%= totalClientesAdmin %></strong>
+                                    </div>
+                                    <div class="mini-bar" style="height:8px;"><span style="width:<%= totalUsuarios > 0 ? (totalClientesAdmin*100/totalUsuarios) : 0 %>%; background:#2563EB; display:block; height:100%; border-radius:4px;"></span></div>
+                                </div>
+                                <div>
+                                    <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;">
+                                        <span>Organizadores</span><strong><%= totalOrganizadores %></strong>
+                                    </div>
+                                    <div class="mini-bar" style="height:8px;"><span style="width:<%= totalUsuarios > 0 ? (totalOrganizadores*100/totalUsuarios) : 0 %>%; background:#7C3AED; display:block; height:100%; border-radius:4px;"></span></div>
+                                </div>
+                                <div>
+                                    <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;">
+                                        <span>Admins</span><strong><%= totalAdmins %></strong>
+                                    </div>
+                                    <div class="mini-bar" style="height:8px;"><span style="width:<%= totalUsuarios > 0 ? (totalAdmins*100/totalUsuarios) : 0 %>%; background:#0F172A; display:block; height:100%; border-radius:4px;"></span></div>
+                                </div>
                             </div>
                         </div>
+
                     </div>
 
                 </div>
@@ -851,12 +1020,12 @@
                         <button class="btn-outline" onclick="mudarView('eventos', document.querySelector('[data-view=eventos]'))">Ver todos</button>
                     </div>
 
-                    <div class="table-wrap">
+                    <div class="table-wrap" style="max-height:220px; overflow-y:auto;">
                         <table class="data-table">
                             <thead>
                                 <tr>
                                     <th>Evento</th><th>Categoria</th><th>Data</th><th>Capacidade</th>
-                                    <th>Inscritos</th><th>Check-in</th><th>Ocupação</th><th>Status</th>
+                                    <th>Inscritos</th><th>Comparecimento</th><th>Ocupação</th><th>Status</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -869,6 +1038,7 @@
                                         int confirmadosEv = confirmadosPorEventoAdmin.getOrDefault(ev.getId_evento(), 0);
                                         int checkinsEv = checkinsPorEventoAdmin.getOrDefault(ev.getId_evento(), 0);
                                         int ocupacaoEv = ev.getCapacidade_evento() > 0 ? (confirmadosEv * 100 / ev.getCapacidade_evento()) : 0;
+                                        int pctComparecimentoEv = confirmadosEv > 0 ? (checkinsEv * 100 / confirmadosEv) : 0;
                                         String nomeOrg = nomeOrganizadorPorId.getOrDefault(ev.getId_organizador(), "—");
                                         String statusClasseEv = "ativo".equals(ev.getStatus_evento()) ? "" : ev.getStatus_evento();
                                 %>
@@ -878,7 +1048,7 @@
                                     <td><%= ev.getInicio_evento().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")) %></td>
                                     <td><%= ev.getCapacidade_evento() %></td>
                                     <td><%= confirmadosEv %> (<%= ocupacaoEv %>%)</td>
-                                    <td><%= checkinsEv %></td>
+                                    <td><%= checkinsEv %> de <%= confirmadosEv %> (<%= pctComparecimentoEv %>%)</td>
                                     <td><%= ocupacaoEv %>%</td>
                                     <td><span class="status-pill <%= statusClasseEv %>"><%= rotuloStatusEvento(ev.getStatus_evento()) %></span></td>
                                 </tr>
@@ -925,6 +1095,16 @@
                         <option value="corporativos">Corporativos</option>
                         <option value="sociais">Sociais</option>
                     </select>
+                    <select class="filter-select" id="filtroOrganizadorAdmin" onchange="filtrarEventosAdmin()">
+                        <option value="">Todos os organizadores</option>
+                        <%
+                            for (String nomeOrg : organizadoresComEvento) {
+                        %>
+                        <option value="<%= js(nomeOrg) %>"><%= nomeOrg %></option>
+                        <%
+                            }
+                        %>
+                    </select>
                 </div>
 
                 <div class="table-wrap">
@@ -940,7 +1120,9 @@
                                     String statusClasseT = "ativo".equals(ev.getStatus_evento()) ? "" : ev.getStatus_evento();
                             %>
                             <tr data-status="<%= ev.getStatus_evento() %>" data-categoria="<%= ev.getCategoria_evento() %>"
-                                data-busca="<%= js(ev.getNome_evento()).toLowerCase() %> <%= js(nomeOrgT).toLowerCase() %>">
+                                data-organizador="<%= js(nomeOrgT) %>"
+                                data-busca="<%= js(ev.getNome_evento()).toLowerCase() %> <%= js(nomeOrgT).toLowerCase() %>"
+                                style="cursor:pointer;" onclick="abrirDetalheEventoAdmin(<%= ev.getId_evento() %>)">
                                 <td><%= ev.getNome_evento() %></td>
                                 <td><%= nomeOrgT %></td>
                                 <td><%= rotuloCategoriaEvento(ev.getCategoria_evento()) %></td>
@@ -958,6 +1140,39 @@
                             %>
                         </tbody>
                     </table>
+                </div>
+
+            </section>
+
+            <!-- ============================================================
+                 VIEW: DETALHES DO EVENTO (ADMIN)
+            ============================================================ -->
+            <section class="view-section" id="view-detalheEventoAdmin">
+
+                <div class="back-link" onclick="mudarViewById('eventos')">← Voltar</div>
+
+                <div class="view-header">
+                    <div><h1 id="dea_nome">—</h1></div>
+                    <div class="header-actions">
+                        <span class="status-pill" id="dea_status">Ativo</span>
+                        <button class="btn-outline" style="color:#DC2626; border-color:#FECACA;" onclick="excluirEventoAdmin()">🗑 Excluir evento</button>
+                    </div>
+                </div>
+
+                <div class="detail-grid">
+                    <div class="detail-box"><label>Organizador</label><div class="val" id="dea_organizador">—</div></div>
+                    <div class="detail-box"><label>Categoria</label><div class="val" id="dea_categoria">—</div></div>
+                    <div class="detail-box"><label>Início</label><div class="val" id="dea_inicio">—</div></div>
+                    <div class="detail-box"><label>Término</label><div class="val" id="dea_fim">—</div></div>
+                    <div class="detail-box"><label>Local</label><div class="val" id="dea_local">—</div></div>
+                    <div class="detail-box"><label>Código</label><div class="val" id="dea_codigo">—</div></div>
+                    <div class="detail-box"><label>Capacidade</label><div class="val" id="dea_capacidade">—</div></div>
+                    <div class="detail-box"><label>Inscritos / Comparecimento</label><div class="val" id="dea_inscritos">—</div></div>
+                </div>
+
+                <div class="panel-card">
+                    <label style="font-size:10px; color:#94A3B8; text-transform:uppercase; margin-bottom:6px; display:block;">Descrição</label>
+                    <div id="dea_descricao" style="font-size:13px;">—</div>
                 </div>
 
             </section>
@@ -1050,6 +1265,19 @@
 <script>
 
     // =========================================================
+    // MODO ESCURO
+    // =========================================================
+
+    function alternarTema() {
+        const escuro = document.getElementById('themeToggle').checked;
+        document.documentElement.classList.toggle('dark-mode', escuro);
+        localStorage.setItem('gerencia-tema', escuro ? 'escuro' : 'claro');
+    }
+
+    document.getElementById('themeToggle').checked =
+        document.documentElement.classList.contains('dark-mode');
+
+    // =========================================================
     // NAVEGAÇÃO ENTRE SUB-VIEWS
     // =========================================================
 
@@ -1090,13 +1318,85 @@
         const busca = document.getElementById('buscaEventoAdmin').value.toLowerCase();
         const status = document.getElementById('filtroStatusAdmin').value;
         const categoria = document.getElementById('filtroCategoriaAdmin').value;
+        const organizador = document.getElementById('filtroOrganizadorAdmin').value;
 
         document.querySelectorAll('#corpoEventosAdmin tr[data-status]').forEach(function (row) {
             const okBusca = busca === '' || (row.dataset.busca || '').includes(busca);
             const okStatus = status === '' || row.dataset.status === status;
             const okCategoria = categoria === '' || row.dataset.categoria === categoria;
-            row.style.display = (okBusca && okStatus && okCategoria) ? '' : 'none';
+            const okOrganizador = organizador === '' || row.dataset.organizador === organizador;
+            row.style.display = (okBusca && okStatus && okCategoria && okOrganizador) ? '' : 'none';
         });
+    }
+
+    // =========================================================
+    // DETALHES DO EVENTO (ADMIN) — dados reais + exclusão
+    // =========================================================
+
+    const eventosAdminData = [
+        <%
+            for (eventoModel evAd : listaEventosAdmin) {
+                int confirmadosAd = confirmadosPorEventoAdmin.getOrDefault(evAd.getId_evento(), 0);
+                int checkinsAd = checkinsPorEventoAdmin.getOrDefault(evAd.getId_evento(), 0);
+                String nomeOrgAd = nomeOrganizadorPorId.getOrDefault(evAd.getId_organizador(), "—");
+        %>
+        {
+            id: <%= evAd.getId_evento() %>,
+            nome: '<%= js(evAd.getNome_evento()) %>',
+            organizador: '<%= js(nomeOrgAd) %>',
+            statusLabel: '<%= rotuloStatusEvento(evAd.getStatus_evento()) %>',
+            statusClasse: '<%= "ativo".equals(evAd.getStatus_evento()) ? "" : evAd.getStatus_evento() %>',
+            categoria: '<%= rotuloCategoriaEvento(evAd.getCategoria_evento()) %>',
+            inicio: '<%= evAd.getInicio_evento().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")) %>',
+            fim: '<%= evAd.getFim_evento().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")) %>',
+            local: '<%= js(evAd.getLocal_evento()) %>',
+            codigo: '<%= js(evAd.getCodigo_evento()) %>',
+            capacidade: <%= evAd.getCapacidade_evento() %>,
+            inscritos: <%= confirmadosAd %>,
+            checkins: <%= checkinsAd %>,
+            descricao: '<%= js(evAd.getDescricao_evento()) %>'
+        },
+        <%
+            }
+        %>
+    ];
+
+    let currentEventoAdminId = null;
+
+    function abrirDetalheEventoAdmin(id) {
+        const ev = eventosAdminData.find(e => e.id === id);
+        if (!ev) return;
+
+        currentEventoAdminId = id;
+
+        document.getElementById('dea_nome').textContent = ev.nome;
+        const statusEl = document.getElementById('dea_status');
+        statusEl.textContent = ev.statusLabel;
+        statusEl.className = 'status-pill ' + ev.statusClasse;
+
+        document.getElementById('dea_organizador').textContent = ev.organizador;
+        document.getElementById('dea_categoria').textContent = ev.categoria;
+        document.getElementById('dea_inicio').textContent = ev.inicio;
+        document.getElementById('dea_fim').textContent = ev.fim;
+        document.getElementById('dea_local').textContent = ev.local;
+        document.getElementById('dea_codigo').textContent = ev.codigo;
+        document.getElementById('dea_capacidade').textContent = ev.capacidade + ' pessoas';
+        document.getElementById('dea_inscritos').textContent =
+            ev.inscritos + ' inscrito(s) / ' + ev.checkins + ' check-in(s)';
+        document.getElementById('dea_descricao').textContent = ev.descricao || '—';
+
+        mudarViewById('detalheEventoAdmin');
+    }
+
+    function excluirEventoAdmin() {
+        const ev = eventosAdminData.find(e => e.id === currentEventoAdminId);
+        if (!ev) return;
+
+        if (!confirm('Excluir "' + ev.nome + '"? Isso remove também inscrições, contratos e favoritos ligados a esse evento. Essa ação não pode ser desfeita.')) {
+            return;
+        }
+
+        window.location.href = '${pageContext.request.contextPath}/eventoController?action=excluir&id=' + ev.id;
     }
 
     function filtrarEventosPorCategoria(categoria) {

@@ -103,7 +103,7 @@
 <%!
     private String js(String s) {
         if (s == null) return "";
-        return s.replace("\\", "\\\\").replace("'", "\\'").replace("\r", " ").replace("\n", " ");
+        return s.replace("\\", "\\\\").replace("'", "\\'").replace("\r", " ").replace("\n", " ").replace("</", "<\\/");
     }
     private String rotuloTipoConta(String tipo) {
         if ("organizador".equals(tipo)) return "Organizador";
@@ -140,10 +140,11 @@
     }
 %>
 <%
-    // ================= AGREGADOS POR EVENTO (inscritos/espera/percentual) =================
+    // ================= AGREGADOS POR EVENTO (inscritos/espera/percentual/check-in) =================
     HashMap<Integer, Integer> inscritosPorEvento = new HashMap<Integer, Integer>();
     HashMap<Integer, Integer> esperaPorEvento = new HashMap<Integer, Integer>();
     HashMap<Integer, Integer> percentualPorEvento = new HashMap<Integer, Integer>();
+    HashMap<Integer, Integer> checkinsPorEvento = new HashMap<Integer, Integer>();
 
     for (eventoModel ev : meusEventos) {
 
@@ -153,9 +154,17 @@
             ? (int) Math.round((confirmados * 100.0) / ev.getCapacidade_evento())
             : 0;
 
+        int checkinsFeitos = 0;
+        for (inscricaoModel inscConfirmada : inscricaoDAOJsp.listarPorEventoEStatus(ev.getId_evento(), "Confirmada")) {
+            if (inscConfirmada.getCheckin() != null) {
+                checkinsFeitos++;
+            }
+        }
+
         inscritosPorEvento.put(ev.getId_evento(), confirmados);
         esperaPorEvento.put(ev.getId_evento(), emEspera);
         percentualPorEvento.put(ev.getId_evento(), pct);
+        checkinsPorEvento.put(ev.getId_evento(), checkinsFeitos);
 
         if ("ativo".equals(ev.getStatus_evento())) {
             totalEventosAtivos++;
@@ -189,6 +198,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>GerenCIA - Painel do Organizador</title>
 
+<script>
+    if (localStorage.getItem('gerencia-tema') === 'escuro') {
+        document.documentElement.classList.add('dark-mode');
+    }
+</script>
+
 <!-- Ajuste automático de proporções para qualquer tamanho de tela -->
 <script src="${pageContext.request.contextPath}/js/responsivo.js"></script>
 
@@ -220,6 +235,7 @@
         display: grid;
         grid-template-columns: 226px 1fr;
         height: calc(var(--vh, 1vh) * 100);
+        min-width: 0;
     }
 
     .sidebar {
@@ -248,10 +264,10 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 15px;
+        font-size: 17px;
     }
 
-    .sidebar-logo span { font-size: 15px; font-weight: 700; }
+    .sidebar-logo span { font-size: 17px; font-weight: 700; }
 
     .nav-item {
         display: flex;
@@ -259,7 +275,7 @@
         gap: 10px;
         padding: 9px 11px;
         border-radius: 9px;
-        font-size: 13px;
+        font-size: 15px;
         font-weight: 500;
         color: #475569;
         margin-bottom: 2px;
@@ -269,7 +285,7 @@
         text-align: left;
     }
 
-    .nav-item .nav-icon { font-size: 14px; width: 17px; text-align: center; }
+    .nav-item .nav-icon { font-size: 16px; width: 17px; text-align: center; }
     .nav-item .nav-label { flex: 1; }
 
     .nav-item .nav-badge {
@@ -279,7 +295,7 @@
         border-radius: 9px;
         background: #F59E0B;
         color: #FFFFFF;
-        font-size: 10px;
+        font-size: 12px;
         font-weight: 700;
         display: flex;
         align-items: center;
@@ -305,7 +321,7 @@
         border-radius: 50%;
         background: linear-gradient(135deg, #7C3AED, #4C1D95);
         color: #FFFFFF;
-        font-size: 11px;
+        font-size: 13px;
         font-weight: 700;
         display: flex;
         align-items: center;
@@ -313,10 +329,10 @@
         flex-shrink: 0;
     }
 
-    .sidebar-footer strong { display: block; font-size: 12px; }
-    .sidebar-footer small { display: block; font-size: 10px; color: #94A3B8; }
+    .sidebar-footer strong { display: block; font-size: 14px; }
+    .sidebar-footer small { display: block; font-size: 12px; color: #94A3B8; }
 
-    .logout-btn { margin-left: auto; font-size: 14px; color: #94A3B8; background: none; border: none; }
+    .logout-btn { margin-left: auto; font-size: 16px; color: #94A3B8; background: none; border: none; }
 
     /* ================= COLUNA PRINCIPAL (topbar fixa + conteúdo com scroll próprio) ================= */
 
@@ -325,6 +341,7 @@
         flex-direction: column;
         height: calc(var(--vh, 1vh) * 100);
         overflow: hidden;
+        min-width: 0;
     }
 
     .topbar {
@@ -336,11 +353,11 @@
         padding: 0 24px;
         flex-shrink: 0;
         position: relative;
-        z-index: 20;
+        z-index: 10;
     }
 
-    .topbar-title strong { display: block; font-size: 13px; }
-    .topbar-title span { display: block; font-size: 10px; color: #94A3B8; }
+    .topbar-title strong { display: block; font-size: 15px; }
+    .topbar-title span { display: block; font-size: 12px; color: #94A3B8; }
 
     .topbar-actions { margin-left: auto; display: flex; align-items: center; gap: 14px; }
 
@@ -348,7 +365,7 @@
 
     .bell-btn {
         width: 32px; height: 32px; border-radius: 8px; border: none;
-        background: #F1F5F9; font-size: 14px; color: #475569;
+        background: #F1F5F9; font-size: 16px; color: #475569;
         display: flex; align-items: center; justify-content: center; position: relative;
     }
 
@@ -362,7 +379,7 @@
     .notif-dropdown {
         position: absolute; top: 42px; right: 0; width: 320px;
         background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px;
-        box-shadow: 0 20px 45px rgba(2,6,23,0.18); display: none; z-index: 30;
+        box-shadow: 0 20px 45px rgba(2,6,23,0.18); display: none; z-index: 25;
         max-height: 380px; display: none; flex-direction: column;
     }
 
@@ -370,15 +387,15 @@
 
     .notif-dropdown-header {
         display: flex; align-items: center; justify-content: space-between;
-        padding: 12px 14px; border-bottom: 1px solid #F1F5F9; font-size: 13px; font-weight: 700;
+        padding: 12px 14px; border-bottom: 1px solid #F1F5F9; font-size: 15px; font-weight: 700;
     }
 
-    .notif-dropdown-header a { font-size: 11px; font-weight: 600; color: #2563EB; }
+    .notif-dropdown-header a { font-size: 13px; font-weight: 600; color: #2563EB; }
 
     .notif-list { overflow-y: auto; }
 
     .notif-item {
-        padding: 11px 14px; border-bottom: 1px solid #F8FAFC; font-size: 12px; color: #334155;
+        padding: 11px 14px; border-bottom: 1px solid #F8FAFC; font-size: 14px; color: #334155;
         display: flex; gap: 8px; align-items: flex-start;
     }
 
@@ -387,11 +404,11 @@
     }
 
     .notif-item.lida .notif-dot { background: #E2E8F0; }
-    .notif-item .notif-time { font-size: 10px; color: #94A3B8; margin-top: 3px; }
-    .notif-empty { padding: 24px 14px; text-align: center; color: #94A3B8; font-size: 12px; }
+    .notif-item .notif-time { font-size: 12px; color: #94A3B8; margin-top: 3px; }
+    .notif-empty { padding: 24px 14px; text-align: center; color: #94A3B8; font-size: 14px; }
 
     .topbar-user {
-        display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600;
+        display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600;
         background: none; border: none; padding: 4px 6px; border-radius: 8px;
     }
 
@@ -409,32 +426,32 @@
         margin-bottom: 16px; gap: 14px; flex-wrap: wrap;
     }
 
-    .view-header h1 { font-size: 19px; }
-    .view-header p { color: #64748B; font-size: 12px; margin-top: 3px; }
+    .view-header h1 { font-size: 23px; font-weight: 700; letter-spacing: -0.3px; }
+    .view-header p { color: #64748B; font-size: 14px; margin-top: 3px; }
     .header-actions { display: flex; gap: 8px; }
 
     .btn-outline {
         display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 14px;
         border-radius: 8px; border: 1px solid #E2E8F0; background: #FFFFFF;
-        font-size: 12px; font-weight: 600; color: #334155;
+        font-size: 14px; font-weight: 600; color: #334155;
     }
     .btn-outline:hover { background: #F8FAFC; }
 
     .btn-solid {
         display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 14px;
         border-radius: 8px; border: none; background: #2563EB; color: #FFFFFF;
-        font-size: 12px; font-weight: 600;
+        font-size: 14px; font-weight: 600;
     }
     .btn-solid:hover { background: #1D4ED8; }
 
     .btn-ghost {
-        border: none; background: none; color: #64748B; font-size: 13px; padding: 6px;
+        border: none; background: none; color: #64748B; font-size: 15px; padding: 6px;
     }
 
     .icon-btn {
         width: 30px; height: 30px; border-radius: 7px; border: 1px solid #E2E8F0;
         background: #FFFFFF; display: flex; align-items: center; justify-content: center;
-        font-size: 12px; color: #64748B;
+        font-size: 14px; color: #64748B;
     }
     .icon-btn:hover { background: #FEF2F2; color: #DC2626; border-color: #FECACA; }
 
@@ -442,49 +459,84 @@
 
     .dash-grid {
         display: grid;
-        grid-template-rows: auto 1fr auto;
+        grid-template-rows: 1fr auto;
         gap: 14px;
-        height: calc(100% - 6px);
+        min-height: calc(100% - 6px);
+        min-width: 0;
+        width: 100%;
     }
 
     .stats-grid {
         display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 12px;
+        min-width: 0;
+        width: 100%;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
     }
 
     .stat-card {
-        background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px;
-        padding: 13px 14px; cursor: pointer; transition: 0.15s;
+        background: #FFFFFF; border: 1px solid #E2E8F0; border-left: 3px solid #7C3AED; border-radius: 8px;
+        padding: 8px 9px; cursor: pointer; transition: 0.15s;
     }
-    .stat-card:hover { border-color: #C4B5FD; box-shadow: 0 6px 16px rgba(124,58,237,0.10); transform: translateY(-1px); }
+    .stat-card:hover { box-shadow: 0 6px 16px rgba(124,58,237,0.14); transform: translateY(-1px); }
 
-    .stat-card .row-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
-    .stat-card .row-top span.label { font-size: 12px; color: #64748B; }
+    .stat-card .row-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 3px; gap: 4px; }
+    .stat-card .row-top span.label {
+        font-size: 9.5px; font-weight: 700; color: #64748B;
+        text-transform: uppercase; letter-spacing: 0.03em; line-height: 1.25;
+    }
 
     .stat-icon {
-        width: 28px; height: 28px; border-radius: 8px; background: #F5F3FF; color: #7C3AED;
-        display: flex; align-items: center; justify-content: center; font-size: 13px;
+        width: 16px; height: 16px; border-radius: 5px; background: #F5F3FF; color: #7C3AED;
+        display: flex; align-items: center; justify-content: center; font-size: 9px; flex-shrink: 0;
     }
 
-    .stat-card strong { font-size: 21px; display: block; }
-    .stat-card .delta { font-size: 10px; color: #94A3B8; }
+    .stat-card strong { font-size: 19px; font-weight: 900; display: block; color: #0F172A; line-height: 1.15; letter-spacing: -0.01em; }
+    .stat-card .delta { font-size: 9px; color: #94A3B8; display: block; margin-top: 2px; }
 
-    .dash-cols { display: grid; grid-template-columns: 1.5fr 1fr; gap: 14px; min-height: 0; }
+    /* Destaque por cor — cada indicador com sua própria identidade visual */
+    .stats-grid .stat-card:nth-child(1) { border-left-color: #7C3AED; background: linear-gradient(180deg, rgba(124,58,237,0.06), #FFFFFF 65%); }
+    .stats-grid .stat-card:nth-child(1) strong { color: #7C3AED; }
+    .stats-grid .stat-card:nth-child(1) .stat-icon { background: rgba(124,58,237,0.14); color: #7C3AED; }
+
+    .stats-grid .stat-card:nth-child(2) { border-left-color: #16A34A; background: linear-gradient(180deg, rgba(22,163,74,0.06), #FFFFFF 65%); }
+    .stats-grid .stat-card:nth-child(2) strong { color: #16A34A; }
+    .stats-grid .stat-card:nth-child(2) .stat-icon { background: rgba(22,163,74,0.14); color: #16A34A; }
+
+    .stats-grid .stat-card:nth-child(3) { border-left-color: #F59E0B; background: linear-gradient(180deg, rgba(245,158,11,0.08), #FFFFFF 65%); }
+    .stats-grid .stat-card:nth-child(3) strong { color: #F59E0B; }
+    .stats-grid .stat-card:nth-child(3) .stat-icon { background: rgba(245,158,11,0.16); color: #F59E0B; }
+
+    .stats-grid .stat-card:nth-child(4) { border-left-color: #2563EB; background: linear-gradient(180deg, rgba(37,99,235,0.06), #FFFFFF 65%); }
+    .stats-grid .stat-card:nth-child(4) strong { color: #2563EB; }
+    .stats-grid .stat-card:nth-child(4) .stat-icon { background: rgba(37,99,235,0.14); color: #2563EB; }
+
+    .dash-cols { display: grid; grid-template-columns: 5fr 2fr; gap: 14px; min-height: 260px; min-width: 0; width: 100%; }
+
+    /* Coluna direita: cards (2x2) empilhados sobre "Próximos eventos",
+       alinhada ao gráfico da esquerda que agora ocupa toda a altura */
+    .dash-right-col {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        min-width: 0;
+        min-height: 0;
+        width: 100%;
+    }
 
     .panel-card {
         background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px;
-        padding: 14px 16px; display: flex; flex-direction: column; min-height: 0;
+        padding: 14px 16px; display: flex; flex-direction: column; min-height: 0; min-width: 0;
     }
 
-    .panel-card h3 { font-size: 13px; margin-bottom: 10px; flex-shrink: 0; }
+    .panel-card h3 { font-size: 15px; margin-bottom: 10px; flex-shrink: 0; }
 
-    .chart-wrap { position: relative; flex: 1; min-height: 0; }
+    .chart-wrap { position: relative; flex: 1; min-height: 180px; }
 
     #chartTooltip {
-        position: absolute; background: #0F172A; color: #FFFFFF; font-size: 11px;
+        position: absolute; background: #0F172A; color: #FFFFFF; font-size: 13px;
         padding: 5px 9px; border-radius: 6px; pointer-events: none; display: none;
-        transform: translate(-50%, -120%); white-space: nowrap; z-index: 5;
+        transform: translate(-50%, -120%); white-space: nowrap; z-index: 15;
     }
 
     .upcoming-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #F1F5F9; cursor: pointer; border-radius: 8px; }
@@ -494,31 +546,32 @@
     .upcoming-item .date-box {
         width: 34px; height: 34px; border-radius: 8px; background: #F5F3FF; color: #7C3AED;
         display: flex; flex-direction: column; align-items: center; justify-content: center;
-        font-size: 9px; font-weight: 700; flex-shrink: 0; line-height: 1.1;
+        font-size: 11px; font-weight: 700; flex-shrink: 0; line-height: 1.1;
     }
 
     .upcoming-item .info { flex: 1; min-width: 0; }
-    .upcoming-item .info strong { display: block; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .upcoming-item .info strong { display: block; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
     .mini-bar { height: 5px; border-radius: 3px; background: #E2E8F0; margin-top: 5px; overflow: hidden; }
     .mini-bar span { display: block; height: 100%; }
 
-    .upcoming-item .pct { font-size: 11px; font-weight: 700; color: #64748B; flex-shrink: 0; }
+    .upcoming-item .pct { font-size: 13px; font-weight: 700; color: #64748B; flex-shrink: 0; }
 
     .bar-green { background: #22C55E; }
     .bar-yellow { background: #F59E0B; }
     .bar-red { background: #EF4444; }
 
-    table.data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    table.data-table { width: 100%; border-collapse: collapse; font-size: 14px; }
     table.data-table th {
-        text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.03em;
+        text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 0.03em;
         color: #94A3B8; padding: 8px 6px; border-bottom: 1px solid #E2E8F0; white-space: nowrap;
+        position: sticky; top: 0; background: #FFFFFF; z-index: 1;
     }
     table.data-table td { padding: 9px 6px; border-bottom: 1px solid #F1F5F9; white-space: nowrap; }
     table.data-table tbody tr { cursor: pointer; }
     table.data-table tbody tr:hover { background: #F8FAFC; }
 
-    .status-pill { font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 6px; background: #DCFCE7; color: #166534; }
+    .status-pill { font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 6px; background: #DCFCE7; color: #166534; }
     .status-pill.rascunho { background: #F1F5F9; color: #64748B; }
     .status-pill.cancelado { background: #FEE2E2; color: #B91C1C; }
     .status-pill.finalizado { background: #DBEAFE; color: #1D4ED8; }
@@ -531,7 +584,7 @@
     .tabs { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; flex-shrink: 0; }
     .tab-btn {
         height: 32px; padding: 0 14px; border-radius: 8px; border: 1px solid #E2E8F0;
-        background: #FFFFFF; font-size: 12px; font-weight: 600; color: #475569;
+        background: #FFFFFF; font-size: 14px; font-weight: 600; color: #475569;
     }
     .tab-btn.active { background: #7C3AED; border-color: #7C3AED; color: #FFFFFF; }
 
@@ -548,44 +601,44 @@
 
     .org-event-card .icon-box, .fornecedor-card .icon-box {
         width: 38px; height: 38px; border-radius: 9px; background: #F5F3FF; color: #7C3AED;
-        display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0;
+        display: flex; align-items: center; justify-content: center; font-size: 17px; flex-shrink: 0;
     }
 
     .org-event-card .info, .fornecedor-card .info { flex: 1; min-width: 0; }
-    .org-event-card .info strong, .fornecedor-card .info strong { font-size: 13px; margin-right: 6px; }
-    .org-event-card .info .meta, .fornecedor-card .info .meta { font-size: 11px; color: #94A3B8; margin-top: 2px; }
+    .org-event-card .info strong, .fornecedor-card .info strong { font-size: 15px; margin-right: 6px; }
+    .org-event-card .info .meta, .fornecedor-card .info .meta { font-size: 13px; color: #94A3B8; margin-top: 2px; }
 
     .org-event-card .capacity { width: 130px; text-align: right; flex-shrink: 0; }
-    .org-event-card .capacity strong { display: block; font-size: 12px; margin-bottom: 3px; }
+    .org-event-card .capacity strong { display: block; font-size: 14px; margin-bottom: 3px; }
 
     .org-event-card .actions, .fornecedor-card .actions { display: flex; gap: 5px; flex-shrink: 0; }
 
-    .cat-tag { font-size: 10px; font-weight: 600; color: #7C3AED; background: #F5F3FF; padding: 3px 9px; border-radius: 6px; flex-shrink: 0; }
+    .cat-tag { font-size: 12px; font-weight: 600; color: #7C3AED; background: #F5F3FF; padding: 3px 9px; border-radius: 6px; flex-shrink: 0; }
 
     .search-row { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; align-items: center; flex-shrink: 0; }
     .search-input {
         flex: 1; min-width: 200px; height: 34px; padding: 0 12px; border-radius: 8px;
-        border: 1px solid #E2E8F0; font-size: 12px;
+        border: 1px solid #E2E8F0; font-size: 14px;
     }
     select.filter-select {
         height: 34px; padding: 0 8px; border-radius: 8px; border: 1px solid #E2E8F0;
-        font-size: 12px; background: #FFFFFF; color: #334155;
+        font-size: 14px; background: #FFFFFF; color: #334155;
     }
 
     /* ================= FORM (Criar Evento / campos padrão) ================= */
 
-    .form-card { background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 22px; max-width: 760px; }
-    .back-link { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #64748B; margin-bottom: 4px; cursor: pointer; }
+    .form-card { background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 22px; max-width: 1200px; min-width: 0; width: 100%; }
+    .back-link { display: flex; align-items: center; gap: 8px; font-size: 14px; color: #64748B; margin-bottom: 4px; cursor: pointer; }
 
     .field { margin-bottom: 15px; }
-    .field label { display: block; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 5px; }
+    .field label { display: block; font-size: 14px; font-weight: 600; color: #334155; margin-bottom: 5px; }
     .field .req { color: #DC2626; }
     .field input, .field select, .field textarea {
         width: 100%; padding: 9px 11px; border: 1px solid #E2E8F0; border-radius: 8px;
-        font-size: 13px; font-family: inherit; background: #F8FAFC;
+        font-size: 15px; font-family: inherit; background: #F8FAFC;
     }
     .field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: #7C3AED; background: #FFFFFF; }
-    .field .hint { font-size: 10px; color: #94A3B8; margin-left: 6px; font-weight: 500; }
+    .field .hint { font-size: 12px; color: #94A3B8; margin-left: 6px; font-weight: 500; }
 
     .fields-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 
@@ -593,7 +646,7 @@
     .campo-bloqueado { pointer-events: none; opacity: 0.55; filter: grayscale(0.25); }
     .toggle-btn {
         flex: 1; padding: 9px; border-radius: 8px; border: 1.5px solid #E2E8F0; background: #FFFFFF;
-        font-size: 12px; font-weight: 600; color: #64748B; text-align: center;
+        font-size: 14px; font-weight: 600; color: #64748B; text-align: center;
     }
     .toggle-btn.active { border-color: #7C3AED; color: #7C3AED; background: #F5F3FF; }
 
@@ -602,7 +655,7 @@
         border: 1px dashed #C4B5FD; display: none;
     }
     .inline-fornecedor-box.open { display: block; }
-    .inline-fornecedor-box h4 { font-size: 12px; color: #7C3AED; margin-bottom: 10px; }
+    .inline-fornecedor-box h4 { font-size: 14px; color: #7C3AED; margin-bottom: 10px; }
 
     .form-footer { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-bottom: 18px; }
 
@@ -610,18 +663,18 @@
 
     .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
     .detail-box { background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px 14px; }
-    .detail-box label { display: block; font-size: 10px; color: #94A3B8; text-transform: uppercase; margin-bottom: 4px; }
-    .detail-box .val { font-size: 13px; font-weight: 600; }
+    .detail-box label { display: block; font-size: 12px; color: #94A3B8; text-transform: uppercase; margin-bottom: 4px; }
+    .detail-box .val { font-size: 15px; font-weight: 600; }
 
     .vinculado-card {
         display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid #E2E8F0;
         border-radius: 10px; margin-bottom: 8px; background: #FFFFFF;
     }
     .vinculado-card .info { flex: 1; }
-    .vinculado-card .info strong { font-size: 13px; display: block; }
-    .vinculado-card .info span { font-size: 11px; color: #94A3B8; }
+    .vinculado-card .info strong { font-size: 15px; display: block; }
+    .vinculado-card .info span { font-size: 13px; color: #94A3B8; }
 
-    .chip { font-size: 11px; font-weight: 600; padding: 4px 11px; border-radius: 20px; background: #ECFDF5; color: #059669; }
+    .chip { font-size: 13px; font-weight: 600; padding: 4px 11px; border-radius: 20px; background: #ECFDF5; color: #059669; }
 
     /* ================= MODAL ================= */
 
@@ -638,26 +691,26 @@
     .modal-box.wide { max-width: 620px; }
 
     .modal-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; }
-    .modal-header h3 { font-size: 15px; }
-    .modal-header span { font-size: 11px; color: #94A3B8; }
-    .modal-close { border: none; background: none; font-size: 18px; color: #94A3B8; cursor: pointer; }
+    .modal-header h3 { font-size: 17px; }
+    .modal-header span { font-size: 13px; color: #94A3B8; }
+    .modal-close { border: none; background: none; font-size: 20px; color: #94A3B8; cursor: pointer; }
 
     .modal-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 16px; }
 
     .upload-box {
         border: 1.5px dashed #E2E8F0; border-radius: 10px; padding: 20px; text-align: center;
-        color: #94A3B8; font-size: 11px;
+        color: #94A3B8; font-size: 13px;
     }
     .upload-box a { color: #7C3AED; font-weight: 600; cursor: pointer; }
 
-    .empty-state { text-align: center; padding: 40px 20px; color: #94A3B8; font-size: 12px; }
+    .empty-state { text-align: center; padding: 40px 20px; color: #94A3B8; font-size: 14px; }
     .menu-toggle-btn {
         display: none;
         width: 34px; height: 34px;
         border-radius: 8px;
         border: 1px solid #E2E8F0;
         background: #FFFFFF;
-        font-size: 16px;
+        font-size: 18px;
         align-items: center;
         justify-content: center;
         cursor: pointer;
@@ -703,6 +756,113 @@
         .stats-grid { grid-template-columns: 1fr; }
     }
 
+    /* =========================================================
+       MODO ESCURO
+       ========================================================= */
+
+    .theme-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 9px 11px;
+        margin-bottom: 2px;
+    }
+
+    .theme-row .nav-label { flex: 1; font-size: 13px; font-weight: 500; color: #475569; }
+
+    .theme-switch { position: relative; width: 36px; height: 20px; flex-shrink: 0; }
+    .theme-switch input { opacity: 0; width: 0; height: 0; }
+    .theme-switch-slider {
+        position: absolute; inset: 0; background: #E2E8F0; border-radius: 20px;
+        cursor: pointer; transition: 0.2s;
+    }
+    .theme-switch-slider::before {
+        content: ""; position: absolute; width: 14px; height: 14px; left: 3px; top: 3px;
+        background: #FFFFFF; border-radius: 50%; transition: 0.2s;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
+    .theme-switch input:checked + .theme-switch-slider { background: #7C3AED; }
+    .theme-switch input:checked + .theme-switch-slider::before { transform: translateX(16px); }
+
+    html.dark-mode body, html.dark-mode { background: #0F172A; color: #E2E8F0; }
+
+    html.dark-mode .sidebar { background: #0F172A; border-right-color: #1E293B; }
+    html.dark-mode .theme-row .nav-label { color: #CBD5E1; }
+    html.dark-mode .nav-item { color: #94A3B8; }
+    html.dark-mode .nav-item:hover { background: #1E293B; }
+    html.dark-mode .nav-item.active { background: rgba(124,58,237,0.18); color: #C4B5FD; }
+    html.dark-mode .sidebar-footer { border-top-color: #1E293B; }
+    html.dark-mode .sidebar-footer strong { color: #E2E8F0; }
+    html.dark-mode .logout-btn { color: #94A3B8; }
+
+    html.dark-mode .topbar { background: #0F172A; border-bottom-color: #1E293B; }
+    html.dark-mode .topbar-title strong { color: #E2E8F0; }
+
+    html.dark-mode .stat-card,
+    html.dark-mode .panel-card,
+    html.dark-mode .org-event-card,
+    html.dark-mode .fornecedor-card,
+    html.dark-mode .detail-box,
+    html.dark-mode .vinculado-card,
+    html.dark-mode .categoria-card,
+    html.dark-mode .modal-box {
+        background: #1E293B;
+        border-color: #334155;
+    }
+
+    html.dark-mode .stat-card strong,
+    html.dark-mode .view-header h1,
+    html.dark-mode .modal-header h3,
+    html.dark-mode h3, html.dark-mode h4 {
+        color: #F1F5F9;
+    }
+
+    /* Destaque por cor dos cards — variantes para o modo escuro */
+    html.dark-mode .stats-grid .stat-card:nth-child(1) { background: linear-gradient(180deg, rgba(124,58,237,0.20), #1E293B 65%); }
+    html.dark-mode .stats-grid .stat-card:nth-child(1) strong { color: #A78BFA; }
+    html.dark-mode .stats-grid .stat-card:nth-child(2) { background: linear-gradient(180deg, rgba(22,163,74,0.20), #1E293B 65%); }
+    html.dark-mode .stats-grid .stat-card:nth-child(2) strong { color: #4ADE80; }
+    html.dark-mode .stats-grid .stat-card:nth-child(3) { background: linear-gradient(180deg, rgba(245,158,11,0.20), #1E293B 65%); }
+    html.dark-mode .stats-grid .stat-card:nth-child(3) strong { color: #FBBF24; }
+    html.dark-mode .stats-grid .stat-card:nth-child(4) { background: linear-gradient(180deg, rgba(37,99,235,0.20), #1E293B 65%); }
+    html.dark-mode .stats-grid .stat-card:nth-child(4) strong { color: #60A5FA; }
+
+    html.dark-mode .upcoming-item { border-bottom-color: #334155; }
+    html.dark-mode .upcoming-item:hover { background: #263449; }
+
+    html.dark-mode table.data-table th { color: #94A3B8; border-bottom-color: #334155; background: #1E293B; }
+    html.dark-mode table.data-table td { border-bottom-color: #334155; color: #E2E8F0; }
+    html.dark-mode table.data-table tbody tr:hover { background: #263449; }
+
+    html.dark-mode input,
+    html.dark-mode select,
+    html.dark-mode textarea {
+        background: #0F172A;
+        border-color: #334155;
+        color: #E2E8F0;
+    }
+
+    html.dark-mode input:focus,
+    html.dark-mode select:focus,
+    html.dark-mode textarea:focus {
+        background: #1E293B;
+    }
+
+    html.dark-mode .btn-outline {
+        background: #1E293B;
+        border-color: #334155;
+        color: #E2E8F0;
+    }
+
+    html.dark-mode .btn-outline:hover { background: #334155; }
+
+    html.dark-mode .tab-btn { background: #1E293B; border-color: #334155; color: #94A3B8; }
+    html.dark-mode .icon-btn { background: #1E293B; border-color: #334155; color: #94A3B8; }
+
+    html.dark-mode .empty-state { color: #64748B; }
+
+    html.dark-mode .inline-fornecedor-box { background: #241A3B; border-color: #4C3579; }
+
 </style>
 </head>
 <body>
@@ -718,27 +878,31 @@
         </div>
 
         <button class="nav-item active" data-view="dashboard" onclick="mudarView('dashboard', this)">
-            <span class="nav-icon">▦</span>
             <span class="nav-label">Dashboard</span>
         </button>
 
         <button class="nav-item" data-view="eventos" onclick="mudarView('eventos', this)">
-            <span class="nav-icon">📅</span>
             <span class="nav-label">Eventos</span>
         </button>
 
         <button class="nav-item" data-view="fornecedores" onclick="mudarView('fornecedores', this)">
-            <span class="nav-icon">🚚</span>
             <span class="nav-label">Fornecedores</span>
         </button>
 
         <button class="nav-item" data-view="espera" onclick="mudarView('espera', this)">
-            <span class="nav-icon">👥</span>
             <span class="nav-label">Lista de Espera</span>
             <% if (totalNaEsperaSoma > 0) { %>
             <span class="nav-badge"><%= totalNaEsperaSoma %></span>
             <% } %>
         </button>
+
+        <div class="theme-row">
+            <span class="nav-label">Modo escuro</span>
+            <label class="theme-switch">
+                <input type="checkbox" id="themeToggle" onchange="alternarTema()">
+                <span class="theme-switch-slider"></span>
+            </label>
+        </div>
 
         <button class="nav-item" data-view="perfil" onclick="mudarView('perfil', this)">
             <span class="nav-icon">👤</span>
@@ -828,46 +992,6 @@
 
                 <div class="dash-grid">
 
-                    <div class="stats-grid">
-
-                        <div class="stat-card" onclick="mudarViewById('eventos')">
-                            <div class="row-top">
-                                <span class="label">Eventos ativos</span>
-                                <div class="stat-icon">📅</div>
-                            </div>
-                            <strong><%= totalEventosAtivos %></strong>
-                            <span class="delta"><%= meusEventos.size() %> no total</span>
-                        </div>
-
-                        <div class="stat-card" onclick="mudarViewById('eventos')">
-                            <div class="row-top">
-                                <span class="label">Total de inscritos</span>
-                                <div class="stat-icon">👥</div>
-                            </div>
-                            <strong><%= totalInscritosSoma %></strong>
-                            <span class="delta">confirmados em todos os eventos</span>
-                        </div>
-
-                        <div class="stat-card" onclick="mudarViewById('espera')">
-                            <div class="row-top">
-                                <span class="label">Na lista de espera</span>
-                                <div class="stat-icon">⏳</div>
-                            </div>
-                            <strong><%= totalNaEsperaSoma %></strong>
-                            <span class="delta">clique para ver a fila</span>
-                        </div>
-
-                        <div class="stat-card" onclick="mudarViewById('eventos')">
-                            <div class="row-top">
-                                <span class="label">Ocupação média</span>
-                                <div class="stat-icon">📈</div>
-                            </div>
-                            <strong><%= ocupacaoMedia %>%</strong>
-                            <span class="delta">&nbsp;</span>
-                        </div>
-
-                    </div>
-
                     <div class="dash-cols">
 
                         <div class="panel-card">
@@ -880,37 +1004,81 @@
                             </div>
                         </div>
 
-                        <div class="panel-card">
-                            <h3>Próximos eventos</h3>
-                            <div style="overflow-y:auto; flex:1;">
-                            <%
-                                int mostrados = 0;
-                                for (eventoModel ev : eventosOrdenados) {
-                                    if (mostrados >= 5) break;
-                                    mostrados++;
-                                    int pct = percentualPorEvento.get(ev.getId_evento());
-                                    String corClasse = pct <= 60 ? "bar-green" : (pct <= 75 ? "bar-yellow" : "bar-red");
-                            %>
-                                <div class="upcoming-item" onclick="abrirDetalheEvento(<%= ev.getId_evento() %>)">
-                                    <div class="date-box">
-                                        <span><%= ev.getInicio_evento().format(DateTimeFormatter.ofPattern("dd")) %></span>
-                                        <span><%= ev.getInicio_evento().format(DateTimeFormatter.ofPattern("MMM")) %></span>
+                        <div class="dash-right-col">
+
+                            <div class="stats-grid">
+
+                                <div class="stat-card" onclick="mudarViewById('eventos')">
+                                    <div class="row-top">
+                                        <span class="label">Eventos ativos</span>
+                                        <div class="stat-icon"></div>
                                     </div>
-                                    <div class="info">
-                                        <strong><%= ev.getNome_evento() %></strong>
-                                        <div class="mini-bar"><span class="<%= corClasse %>" style="width:<%= pct %>%"></span></div>
-                                    </div>
-                                    <span class="pct"><%= pct %>%</span>
+                                    <strong><%= totalEventosAtivos %></strong>
+                                    <span class="delta"><%= meusEventos.size() %> no total</span>
                                 </div>
-                            <%
-                                }
-                                if (mostrados == 0) {
-                            %>
-                                <div class="empty-state">Nenhum evento cadastrado ainda.</div>
-                            <%
-                                }
-                            %>
+
+                                <div class="stat-card" onclick="mudarViewById('eventos')">
+                                    <div class="row-top">
+                                        <span class="label">Total de inscritos</span>
+                                        <div class="stat-icon"></div>
+                                    </div>
+                                    <strong><%= totalInscritosSoma %></strong>
+                                    <span class="delta">confirmados em todos os eventos</span>
+                                </div>
+
+                                <div class="stat-card" onclick="mudarViewById('espera')">
+                                    <div class="row-top">
+                                        <span class="label">Na lista de espera</span>
+                                        <div class="stat-icon"></div>
+                                    </div>
+                                    <strong><%= totalNaEsperaSoma %></strong>
+                                    <span class="delta">clique para ver a fila</span>
+                                </div>
+
+                                <div class="stat-card" onclick="mudarViewById('eventos')">
+                                    <div class="row-top">
+                                        <span class="label">Ocupação média</span>
+                                        <div class="stat-icon"></div>
+                                    </div>
+                                    <strong><%= ocupacaoMedia %>%</strong>
+                                    <span class="delta">&nbsp;</span>
+                                </div>
+
                             </div>
+
+                            <div class="panel-card" style="flex:1;">
+                                <h3>Próximos eventos</h3>
+                                <div style="overflow-y:auto; flex:1;">
+                                <%
+                                    int mostrados = 0;
+                                    for (eventoModel ev : eventosOrdenados) {
+                                        if (mostrados >= 5) break;
+                                        mostrados++;
+                                        int pct = percentualPorEvento.get(ev.getId_evento());
+                                        String corClasse = pct <= 60 ? "bar-green" : (pct <= 75 ? "bar-yellow" : "bar-red");
+                                %>
+                                    <div class="upcoming-item" onclick="abrirDetalheEvento(<%= ev.getId_evento() %>)">
+                                        <div class="date-box">
+                                            <span><%= ev.getInicio_evento().format(DateTimeFormatter.ofPattern("dd")) %></span>
+                                            <span><%= ev.getInicio_evento().format(DateTimeFormatter.ofPattern("MMM")) %></span>
+                                        </div>
+                                        <div class="info">
+                                            <strong><%= ev.getNome_evento() %></strong>
+                                            <div class="mini-bar"><span class="<%= corClasse %>" style="width:<%= pct %>%"></span></div>
+                                        </div>
+                                        <span class="pct"><%= pct %>%</span>
+                                    </div>
+                                <%
+                                    }
+                                    if (mostrados == 0) {
+                                %>
+                                    <div class="empty-state">Nenhum evento cadastrado ainda.</div>
+                                <%
+                                    }
+                                %>
+                                </div>
+                            </div>
+
                         </div>
 
                     </div>
@@ -921,22 +1089,25 @@
                             <button class="btn-outline" onclick="exportarPDF('dashboard')">⬇ Exportar</button>
                         </div>
 
-                        <div class="table-wrap">
+                        <div class="table-wrap" style="max-height:180px;">
                             <table class="data-table">
                                 <thead>
-                                    <tr><th>Evento</th><th>Data</th><th>Inscritos / Capacidade</th><th>Ocupação</th><th>Status</th></tr>
+                                    <tr><th>Evento</th><th>Data</th><th>Inscritos / Capacidade</th><th>Comparecimento</th><th>Ocupação</th><th>Status</th></tr>
                                 </thead>
                                 <tbody>
                                 <%
                                     for (eventoModel ev : meusEventos) {
                                         int inscritos = inscritosPorEvento.get(ev.getId_evento());
                                         int pct = percentualPorEvento.get(ev.getId_evento());
+                                        int checkinsEv = checkinsPorEvento.get(ev.getId_evento());
+                                        int pctComparecimento = inscritos > 0 ? (checkinsEv * 100 / inscritos) : 0;
                                         String statusClasse = "ativo".equals(ev.getStatus_evento()) ? "" : ev.getStatus_evento();
                                 %>
                                     <tr onclick="abrirDetalheEvento(<%= ev.getId_evento() %>)">
                                         <td><strong><%= ev.getNome_evento() %></strong><br><span style="color:#94A3B8;font-size:10px;"><%= ev.getLocal_evento() %></span></td>
                                         <td><%= ev.getInicio_evento().format(fmtData) %></td>
                                         <td><%= inscritos %> / <%= ev.getCapacidade_evento() %></td>
+                                        <td><%= checkinsEv %> (<%= pctComparecimento %>%)</td>
                                         <td><%= pct %>%</td>
                                         <td><span class="status-pill <%= statusClasse %>"><%= rotuloStatusEvento(ev.getStatus_evento()) %></span></td>
                                     </tr>
@@ -944,7 +1115,7 @@
                                     }
                                     if (meusEventos.isEmpty()) {
                                 %>
-                                    <tr><td colspan="5" style="text-align:center; color:#94A3B8;">Nenhum evento cadastrado ainda.</td></tr>
+                                    <tr><td colspan="6" style="text-align:center; color:#94A3B8;">Nenhum evento cadastrado ainda.</td></tr>
                                 <%
                                     }
                                 %>
@@ -1264,7 +1435,21 @@
                 </div>
 
                 <div class="view-header" style="margin-bottom:10px;">
-                    <h3 style="font-size:13px;">🚚 Fornecedores Vinculados</h3>
+                    <h3 style="font-size:13px;" id="det_ev_inscritos_titulo">Inscritos</h3>
+                    <button class="btn-outline" onclick="exportarInscritosPDF()">⬇ Exportar inscritos</button>
+                </div>
+
+                <div class="table-wrap" style="margin-bottom:20px;">
+                    <table class="data-table">
+                        <thead>
+                            <tr><th>Nome</th><th>CPF</th><th>E-mail</th><th>Status</th><th>Inscrito em</th><th>Check-in</th></tr>
+                        </thead>
+                        <tbody id="det_ev_inscritos_corpo"></tbody>
+                    </table>
+                </div>
+
+                <div class="view-header" style="margin-bottom:10px;">
+                    <h3 style="font-size:13px;">Fornecedores Vinculados</h3>
                     <button class="btn-outline" onclick="abrirModalContrato(null, currentEventoId)">+ Vincular fornecedor</button>
                 </div>
 
@@ -1320,7 +1505,7 @@
 
                 <div class="panel-card" style="margin-bottom:14px;">
                     <div style="display:flex; align-items:center; gap:14px;">
-                        <div class="icon-box" style="width:44px;height:44px;border-radius:10px;background:#F5F3FF;color:#7C3AED;display:flex;align-items:center;justify-content:center;font-size:18px;">🚚</div>
+                        <div class="icon-box" style="width:44px;height:44px;border-radius:10px;background:#F5F3FF;color:#7C3AED;display:flex;align-items:center;justify-content:center;font-size:18px;"></div>
                         <div style="flex:1;">
                             <div style="font-weight:700; font-size:14px;" id="det_for_nome2">—</div>
                             <div style="font-size:11px; color:#94A3B8;" id="det_for_contato">—</div>
@@ -1361,6 +1546,10 @@
                     <button class="btn-outline" onclick="exportarPDF('espera')">⬇ Exportar</button>
                 </div>
 
+                <div class="search-row">
+                    <input class="search-input" type="text" id="buscaEsperaCpf" placeholder="Buscar por CPF..." oninput="filtrarEsperaPorCpf()">
+                </div>
+
                 <div id="espera-container">
                 <%
                     boolean temFila = false;
@@ -1374,10 +1563,10 @@
 
                         temFila = true;
                 %>
-                    <div class="panel-card" style="margin-bottom:12px;">
+                    <div class="panel-card espera-evento-card" style="margin-bottom:12px;">
                         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
                             <div>
-                                <strong style="font-size:13px;">📅 <%= ev.getNome_evento() %></strong>
+                                <strong style="font-size:13px;"><%= ev.getNome_evento() %></strong>
                                 <div style="font-size:11px; color:#94A3B8;"><%= ev.getInicio_evento().format(fmtData) %> · <%= fila.size() %> na fila</div>
                             </div>
                             <span class="status-pill pendente"><%= fila.size() %></span>
@@ -1396,7 +1585,7 @@
                                     String cpfU = u != null ? u.getCPF_usuario() : "—";
                                     String emailU = u != null ? u.getEmail_usuario() : "—";
                             %>
-                                <tr>
+                                <tr class="linha-espera" data-cpf="<%= cpfU %>">
                                     <td><%= pos %>ª</td>
                                     <td><%= nomeU %></td>
                                     <td><%= cpfU %></td>
@@ -1760,6 +1949,19 @@
 <script>
 
     // =========================================================
+    // MODO ESCURO
+    // =========================================================
+
+    function alternarTema() {
+        const escuro = document.getElementById('themeToggle').checked;
+        document.documentElement.classList.toggle('dark-mode', escuro);
+        localStorage.setItem('gerencia-tema', escuro ? 'escuro' : 'claro');
+    }
+
+    document.getElementById('themeToggle').checked =
+        document.documentElement.classList.contains('dark-mode');
+
+    // =========================================================
     // DADOS REAIS (gerados pelo JSP a partir do banco)
     // =========================================================
 
@@ -1849,6 +2051,86 @@
     const totalInscritosReal = <%= totalInscritosSoma %>;
 
     // =========================================================
+    // INSCRITOS POR EVENTO (dados reais, pra tela de Detalhes do Evento)
+    // =========================================================
+
+    const inscritosData = [
+        <%
+            for (eventoModel evIns : meusEventos) {
+
+                List<inscricaoModel> inscricoesDoEvento = new ArrayList<inscricaoModel>();
+                inscricoesDoEvento.addAll(inscricaoDAOJsp.listarPorEventoEStatus(evIns.getId_evento(), "Confirmada"));
+                inscricoesDoEvento.addAll(inscricaoDAOJsp.listarPorEventoEStatus(evIns.getId_evento(), "Espera"));
+                inscricoesDoEvento.addAll(inscricaoDAOJsp.listarPorEventoEStatus(evIns.getId_evento(), "Cancelada"));
+
+                for (inscricaoModel insIns : inscricoesDoEvento) {
+
+                    usuarioModel uIns = usuarioDAOJsp.buscarPorId(insIns.getId_usuario());
+                    if (uIns == null) continue;
+
+                    String statusLabelIns;
+                    if ("Cancelada".equals(insIns.getStatus_inscricao())) statusLabelIns = "Cancelada";
+                    else if ("Espera".equals(insIns.getStatus_inscricao())) statusLabelIns = "Na lista de espera";
+                    else statusLabelIns = "Confirmada";
+
+                    String checkinIns = insIns.getCheckin() != null
+                        ? insIns.getCheckin().format(fmtDataHora)
+                        : "—";
+        %>
+        {
+            idEvento: <%= evIns.getId_evento() %>,
+            nome: '<%= js(uIns.getNome_usuario()) %>',
+            cpf: '<%= js(uIns.getCPF_usuario()) %>',
+            email: '<%= js(uIns.getEmail_usuario()) %>',
+            status: '<%= statusLabelIns %>',
+            dataInscricao: '<%= insIns.getData_inscricao().format(fmtDataHora) %>',
+            checkin: '<%= checkinIns %>'
+        },
+        <%
+                }
+            }
+        %>
+    ];
+
+    function renderizarInscritosEvento(idEvento) {
+        const lista = inscritosData.filter(i => i.idEvento === idEvento);
+
+        document.getElementById('det_ev_inscritos_titulo').textContent =
+            'Inscritos (' + lista.length + ')';
+
+        document.getElementById('det_ev_inscritos_corpo').innerHTML = lista.map(i => `
+            <tr>
+                <td>\${i.nome}</td>
+                <td>\${i.cpf}</td>
+                <td>\${i.email}</td>
+                <td><span class="status-pill \${i.status === 'Cancelada' ? 'cancelado' : (i.status === 'Na lista de espera' ? 'pendente' : '')}">\${i.status}</span></td>
+                <td>\${i.dataInscricao}</td>
+                <td>\${i.checkin}</td>
+            </tr>
+        `).join('') || '<tr><td colspan="6" style="text-align:center; color:#94A3B8;">Nenhum inscrito ainda.</td></tr>';
+    }
+
+    function exportarInscritosPDF() {
+        const ev = eventosData.find(e => e.id === currentEventoId);
+        if (!ev) return;
+
+        const lista = inscritosData.filter(i => i.idEvento === currentEventoId);
+
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        doc.setFontSize(14);
+        doc.text('Inscritos — ' + ev.nome, 14, 18);
+
+        doc.autoTable({
+            startY: 26,
+            head: [['Nome', 'CPF', 'E-mail', 'Status', 'Inscrito em', 'Check-in']],
+            body: lista.map(i => [i.nome, i.cpf, i.email, i.status, i.dataInscricao, i.checkin])
+        });
+
+        doc.save('inscritos-' + ev.codigo + '.pdf');
+    }
+
+    // =========================================================
     // NAVEGAÇÃO ENTRE SUB-VIEWS
     // =========================================================
 
@@ -1919,12 +2201,12 @@
 
         document.getElementById('lista-eventos-organizador').innerHTML = lista.map(ev => `
             <div class="org-event-card" onclick="abrirDetalheEvento(\${ev.id})">
-                <div class="icon-box">📅</div>
+                <div class="icon-box"></div>
                 <div class="info">
                     <strong>\${ev.nome}</strong>
                     <span class="status-pill \${ev.status === 'ativo' ? '' : ev.status}">\${ev.statusLabel}</span>
                     <div class="meta">\${ev.inicio} · \${ev.local}</div>
-                    <div class="meta">\${ev.espera > 0 ? '⏳ ' + ev.espera + ' na lista de espera' : ''}</div>
+                    <div class="meta">\${ev.espera > 0 ? ev.espera + ' na lista de espera' : ''}</div>
                 </div>
                 <div class="capacity">
                     <strong>\${ev.inscritos}/\${ev.capacidade}</strong>
@@ -2022,11 +2304,13 @@
         document.getElementById('det_ev_codigo').textContent = ev.codigo;
         document.getElementById('det_ev_descricao').textContent = ev.descricao || '—';
 
+        renderizarInscritosEvento(id);
+
         const vinculados = contratosData.filter(c => c.idEvento === id);
 
         document.getElementById('det_ev_fornecedores').innerHTML = vinculados.map(c => `
             <div class="vinculado-card">
-                <div class="icon-box" style="width:34px;height:34px;border-radius:8px;background:#F5F3FF;color:#7C3AED;display:flex;align-items:center;justify-content:center;">🚚</div>
+                <div class="icon-box" style="width:34px;height:34px;border-radius:8px;background:#F5F3FF;color:#7C3AED;display:flex;align-items:center;justify-content:center;"></div>
                 <div class="info">
                     <strong>\${c.nomeFornecedor}</strong>
                     <span>Responsável: \${c.responsavel}</span>
@@ -2056,7 +2340,7 @@
             const qtdContratos = contratosData.filter(c => c.idFornecedor === f.id).length;
             return `
                 <div class="fornecedor-card" onclick="abrirDetalheFornecedor(\${f.id})">
-                    <div class="icon-box">🚚</div>
+                    <div class="icon-box"></div>
                     <div class="info">
                         <strong>\${f.nome}</strong>
                         <div class="meta">\${f.categoria} · \${f.cnpj || 'CNPJ não informado'} · \${f.telefone || '—'}</div>
@@ -2104,7 +2388,7 @@
         const eventosVinculados = [...new Set(contratosDoFornecedor.map(c => c.nomeEvento))];
 
         document.getElementById('det_for_eventos').innerHTML = eventosVinculados.map(nome =>
-            `<span class="chip">📅 \${nome}</span>`
+            `<span class="chip">\${nome}</span>`
         ).join('') || '<span style="font-size:12px;color:#94A3B8;">Nenhum evento vinculado ainda.</span>';
 
         document.getElementById('det_for_contratos').innerHTML = contratosDoFornecedor.map(c => `
@@ -2663,6 +2947,27 @@
     // =========================================================
     // EXPORTAR PDF (relatório da tela atual)
     // =========================================================
+
+    // =========================================================
+    // LISTA DE ESPERA — filtro por CPF
+    // =========================================================
+
+    function filtrarEsperaPorCpf() {
+        const termo = document.getElementById('buscaEsperaCpf').value.replace(/\D/g, '');
+
+        document.querySelectorAll('.espera-evento-card').forEach(card => {
+            let algumVisivel = false;
+
+            card.querySelectorAll('.linha-espera').forEach(linha => {
+                const cpf = (linha.dataset.cpf || '').replace(/\D/g, '');
+                const visivel = termo === '' || cpf.includes(termo);
+                linha.style.display = visivel ? '' : 'none';
+                if (visivel) algumVisivel = true;
+            });
+
+            card.style.display = algumVisivel ? '' : 'none';
+        });
+    }
 
     function exportarPDF(view) {
         const { jsPDF } = window.jspdf;

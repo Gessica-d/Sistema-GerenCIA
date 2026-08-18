@@ -196,4 +196,48 @@ public class eventoDAO {
 
         stmt.close();
     }
+
+    // ================= EXCLUIR EVENTO COM TUDO QUE DEPENDE DELE =================
+    // Sem isso, excluir um evento que já tem inscrito/contrato/favorito
+    // quebra por causa das chaves estrangeiras (ON DELETE NO ACTION).
+    // Usado principalmente pelo admin, ao remover eventos inadequados.
+    public void excluirEventoComDependencias(int idEvento) throws Exception {
+
+        // notificações das inscrições desse evento
+        PreparedStatement stmtNotif = conexao.prepareStatement(
+            "DELETE n FROM notificacao n "
+            + "INNER JOIN inscricao i ON n.id_inscricao = i.id_inscricao "
+            + "WHERE i.id_evento = ?"
+        );
+        stmtNotif.setInt(1, idEvento);
+        stmtNotif.executeUpdate();
+        stmtNotif.close();
+
+        // inscrições
+        PreparedStatement stmtInsc = conexao.prepareStatement(
+            "DELETE FROM inscricao WHERE id_evento = ?"
+        );
+        stmtInsc.setInt(1, idEvento);
+        stmtInsc.executeUpdate();
+        stmtInsc.close();
+
+        // contratos
+        PreparedStatement stmtContrato = conexao.prepareStatement(
+            "DELETE FROM contrato WHERE id_evento = ?"
+        );
+        stmtContrato.setInt(1, idEvento);
+        stmtContrato.executeUpdate();
+        stmtContrato.close();
+
+        // favoritos
+        PreparedStatement stmtFav = conexao.prepareStatement(
+            "DELETE FROM favorito WHERE id_evento = ?"
+        );
+        stmtFav.setInt(1, idEvento);
+        stmtFav.executeUpdate();
+        stmtFav.close();
+
+        // por fim, o evento em si
+        excluirEvento(idEvento);
+    }
 }

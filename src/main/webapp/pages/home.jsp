@@ -74,7 +74,7 @@
 <%!
     private String js(String s) {
         if (s == null) return "";
-        return s.replace("\\", "\\\\").replace("'", "\\'").replace("\r", " ").replace("\n", " ");
+        return s.replace("\\", "\\\\").replace("'", "\\'").replace("\r", " ").replace("\n", " ").replace("</", "<\\/");
     }
     private String rotuloCategoria(String c) {
         if (c == null) return "";
@@ -90,6 +90,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>GerenCIA - Início</title>
+
+<script>
+    // Aplica o tema salvo o quanto antes, pra não "piscar" claro antes de escurecer.
+    if (localStorage.getItem('gerencia-tema') === 'escuro') {
+        document.documentElement.classList.add('dark-mode');
+    }
+</script>
 
 <!-- Ajuste automático de proporções para qualquer tamanho de tela -->
 <script src="${pageContext.request.contextPath}/js/responsivo.js"></script>
@@ -107,7 +114,12 @@
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
-    body {
+    /* ================= LAYOUT GERAL (sem scroll na página toda) ================= */
+
+    html, body {
+        height: 100%;
+        overflow: hidden;
+        width: 100%;
         font-family: 'Inter', Arial, Helvetica, sans-serif;
         color: #0F172A;
         background: #F8FAFC;
@@ -116,12 +128,19 @@
     a { text-decoration: none; color: inherit; }
     button { font-family: inherit; cursor: pointer; }
 
-    /* ================= LAYOUT GERAL ================= */
-
     .app {
         display: grid;
         grid-template-columns: 240px 1fr;
-        min-height: calc(var(--vh, 1vh) * 100);
+        height: calc(var(--vh, 1vh) * 100);
+        min-width: 0;
+    }
+
+    .main-col {
+        min-width: 0;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        height: calc(var(--vh, 1vh) * 100);
     }
 
     /* ================= SIDEBAR ================= */
@@ -132,9 +151,8 @@
         display: flex;
         flex-direction: column;
         padding: 20px 14px;
-        position: sticky;
-        top: 0;
         height: calc(var(--vh, 1vh) * 100);
+        overflow-y: auto;
     }
 
     .sidebar-logo {
@@ -153,11 +171,11 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 16px;
+        font-size: 18px;
     }
 
     .sidebar-logo span {
-        font-size: 16px;
+        font-size: 18px;
         font-weight: 700;
     }
 
@@ -167,7 +185,7 @@
         gap: 10px;
         padding: 10px 12px;
         border-radius: 9px;
-        font-size: 14px;
+        font-size: 16px;
         font-weight: 500;
         color: #475569;
         margin-bottom: 2px;
@@ -177,7 +195,7 @@
         text-align: left;
     }
 
-    .nav-item .nav-icon { font-size: 15px; width: 18px; text-align: center; }
+    .nav-item .nav-icon { font-size: 17px; width: 18px; text-align: center; }
 
     .nav-item .nav-label { flex: 1; }
 
@@ -188,7 +206,7 @@
         border-radius: 9px;
         background: #EF4444;
         color: #FFFFFF;
-        font-size: 10px;
+        font-size: 12px;
         font-weight: 700;
         display: flex;
         align-items: center;
@@ -220,7 +238,7 @@
         border-radius: 50%;
         background: linear-gradient(135deg, #2563EB, #7C3AED);
         color: #FFFFFF;
-        font-size: 12px;
+        font-size: 14px;
         font-weight: 700;
         display: flex;
         align-items: center;
@@ -228,12 +246,12 @@
         flex-shrink: 0;
     }
 
-    .sidebar-footer strong { display: block; font-size: 13px; }
-    .sidebar-footer small { display: block; font-size: 11px; color: #94A3B8; }
+    .sidebar-footer strong { display: block; font-size: 15px; }
+    .sidebar-footer small { display: block; font-size: 13px; color: #94A3B8; }
 
     .logout-btn {
         margin-left: auto;
-        font-size: 15px;
+        font-size: 17px;
         color: #94A3B8;
         background: none;
         border: none;
@@ -249,9 +267,9 @@
         align-items: center;
         gap: 18px;
         padding: 0 28px;
-        position: sticky;
-        top: 0;
-        z-index: 5;
+        flex-shrink: 0;
+        position: relative;
+        z-index: 10;
     }
 
     .search-box {
@@ -265,14 +283,14 @@
         border-radius: 9px;
         background: #F1F5F9;
         color: #94A3B8;
-        font-size: 13px;
+        font-size: 15px;
     }
 
     .search-box input {
         border: none;
         background: none;
         outline: none;
-        font-size: 13px;
+        font-size: 15px;
         flex: 1;
         color: #0F172A;
     }
@@ -286,7 +304,7 @@
 
     .bell {
         position: relative;
-        font-size: 17px;
+        font-size: 19px;
         color: #64748B;
     }
 
@@ -305,15 +323,18 @@
         display: flex;
         align-items: center;
         gap: 8px;
-        font-size: 13px;
+        font-size: 15px;
         font-weight: 600;
     }
 
     /* ================= CONTEÚDO ================= */
 
     .content {
+        flex: 1;
+        overflow-y: auto;
         padding: 28px;
-        max-width: 1280px;
+        max-width: 1760px;
+        width: 100%;
     }
 
     .view-section { display: none; }
@@ -328,8 +349,8 @@
         flex-wrap: wrap;
     }
 
-    .view-header h1 { font-size: 22px; }
-    .view-header p { color: #64748B; font-size: 13px; margin-top: 4px; }
+    .view-header h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.3px; }
+    .view-header p { color: #64748B; font-size: 15px; margin-top: 4px; }
 
     .btn-outline {
         display: inline-flex;
@@ -340,7 +361,7 @@
         border-radius: 8px;
         border: 1px solid #E2E8F0;
         background: #FFFFFF;
-        font-size: 13px;
+        font-size: 15px;
         font-weight: 600;
         color: #334155;
     }
@@ -357,7 +378,7 @@
         border: none;
         background: #2563EB;
         color: #FFFFFF;
-        font-size: 13px;
+        font-size: 15px;
         font-weight: 600;
     }
 
@@ -398,13 +419,13 @@
         padding: 5px 11px;
         border-radius: 20px;
         background: rgba(255,255,255,0.16);
-        font-size: 11px;
+        font-size: 13px;
         font-weight: 600;
         margin-bottom: 10px;
     }
 
     .hero-banner h2 { position: relative; z-index: 1; font-size: 24px; margin-bottom: 6px; }
-    .hero-banner p { position: relative; z-index: 1; font-size: 13px; color: #DBEAFE; }
+    .hero-banner p { position: relative; z-index: 1; font-size: 15px; color: #DBEAFE; }
 
     /* ================= FILTRO CATEGORIA (pills) ================= */
 
@@ -421,7 +442,7 @@
         border-radius: 20px;
         border: 1px solid #E2E8F0;
         background: #FFFFFF;
-        font-size: 13px;
+        font-size: 15px;
         font-weight: 500;
         color: #475569;
     }
@@ -439,6 +460,8 @@
         grid-template-columns: 1fr 300px;
         gap: 22px;
         align-items: start;
+        min-width: 0;
+        width: 100%;
     }
 
     /* ================= GRID DE EVENTOS ================= */
@@ -469,7 +492,7 @@
         left: 10px;
         background: #EF4444;
         color: #FFFFFF;
-        font-size: 10px;
+        font-size: 12px;
         font-weight: 700;
         padding: 3px 8px;
         border-radius: 5px;
@@ -484,7 +507,7 @@
         border-radius: 50%;
         border: none;
         background: rgba(255,255,255,0.92);
-        font-size: 13px;
+        font-size: 15px;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -502,7 +525,7 @@
     }
 
     .cat-tag {
-        font-size: 11px;
+        font-size: 13px;
         font-weight: 600;
         color: #2563EB;
         background: #EFF6FF;
@@ -510,12 +533,12 @@
         border-radius: 6px;
     }
 
-    .price-tag { font-size: 13px; font-weight: 700; }
+    .price-tag { font-size: 15px; font-weight: 700; }
 
-    .event-card h3 { font-size: 14px; margin-bottom: 6px; }
+    .event-card h3 { font-size: 16px; margin-bottom: 6px; }
 
     .event-meta {
-        font-size: 12px;
+        font-size: 14px;
         color: #94A3B8;
         margin-bottom: 4px;
     }
@@ -546,7 +569,7 @@
         flex: 1;
         justify-content: center;
         height: 34px;
-        font-size: 12px;
+        font-size: 14px;
     }
 
     /* ================= CARDS LATERAIS (Início) ================= */
@@ -560,7 +583,7 @@
     }
 
     .side-card h4 {
-        font-size: 13px;
+        font-size: 15px;
         margin-bottom: 12px;
         display: flex;
         align-items: center;
@@ -586,16 +609,16 @@
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        font-size: 10px;
+        font-size: 12px;
         font-weight: 700;
         flex-shrink: 0;
     }
 
-    .side-item .info strong { display: block; font-size: 12px; }
-    .side-item .info span { font-size: 11px; color: #94A3B8; }
+    .side-item .info strong { display: block; font-size: 14px; }
+    .side-item .info span { font-size: 13px; color: #94A3B8; }
 
     .status-chip {
-        font-size: 10px;
+        font-size: 12px;
         font-weight: 600;
         padding: 2px 7px;
         border-radius: 5px;
@@ -628,13 +651,13 @@
     }
 
     .list-card .info { flex: 1; }
-    .list-card .info strong { font-size: 14px; }
-    .list-card .info .meta { font-size: 12px; color: #94A3B8; margin-top: 3px; }
+    .list-card .info strong { font-size: 16px; }
+    .list-card .info .meta { font-size: 14px; color: #94A3B8; margin-top: 3px; }
 
     .list-card .actions { display: flex; gap: 8px; align-items: center; }
 
     .badge-status {
-        font-size: 11px;
+        font-size: 13px;
         font-weight: 600;
         padding: 4px 9px;
         border-radius: 6px;
@@ -652,7 +675,7 @@
         border: 1px solid #FCA5A5;
         background: #FFFFFF;
         color: #DC2626;
-        font-size: 12px;
+        font-size: 14px;
         font-weight: 600;
     }
 
@@ -670,9 +693,9 @@
         max-width: 640px;
     }
 
-    .profile-card .avatar { width: 60px; height: 60px; font-size: 18px; }
-    .profile-card strong { display: block; font-size: 16px; }
-    .profile-card span.sub { font-size: 12px; color: #94A3B8; }
+    .profile-card .avatar { width: 60px; height: 60px; font-size: 20px; }
+    .profile-card strong { display: block; font-size: 18px; }
+    .profile-card span.sub { font-size: 14px; color: #94A3B8; }
 
     .profile-form {
         background: #FFFFFF;
@@ -686,7 +709,7 @@
 
     .field label {
         display: block;
-        font-size: 13px;
+        font-size: 15px;
         font-weight: 600;
         color: #334155;
         margin-bottom: 6px;
@@ -698,7 +721,7 @@
         padding: 10px 12px;
         border: 1px solid #E2E8F0;
         border-radius: 8px;
-        font-size: 13px;
+        font-size: 15px;
         font-family: inherit;
         background: #F8FAFC;
     }
@@ -720,7 +743,7 @@
         text-align: center;
         padding: 50px 20px;
         color: #94A3B8;
-        font-size: 13px;
+        font-size: 15px;
     }
 
     .menu-toggle-btn {
@@ -729,7 +752,7 @@
         border-radius: 8px;
         border: 1px solid #E2E8F0;
         background: #FFFFFF;
-        font-size: 16px;
+        font-size: 18px;
         align-items: center;
         justify-content: center;
         cursor: pointer;
@@ -782,11 +805,108 @@
         max-height: 90vh; overflow-y: auto; padding: 22px;
     }
     .modal-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; }
-    .modal-header h3 { font-size: 15px; }
-    .modal-close { border: none; background: none; font-size: 18px; color: #94A3B8; cursor: pointer; }
+    .modal-header h3 { font-size: 17px; }
+    .modal-close { border: none; background: none; font-size: 20px; color: #94A3B8; cursor: pointer; }
     .modal-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
-    .modal-field label { display: block; font-size: 10px; color: #94A3B8; text-transform: uppercase; margin-bottom: 4px; }
-    .modal-field .val { font-size: 13px; font-weight: 600; }
+    .modal-field label { display: block; font-size: 12px; color: #94A3B8; text-transform: uppercase; margin-bottom: 4px; }
+    .modal-field .val { font-size: 15px; font-weight: 600; }
+
+    /* =========================================================
+       MODO ESCURO
+       ========================================================= */
+
+    .theme-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        margin-bottom: 2px;
+    }
+
+    .theme-row .nav-label { flex: 1; font-size: 14px; font-weight: 500; color: #475569; }
+
+    .theme-switch { position: relative; width: 38px; height: 21px; flex-shrink: 0; }
+    .theme-switch input { opacity: 0; width: 0; height: 0; }
+    .theme-switch-slider {
+        position: absolute; inset: 0; background: #E2E8F0; border-radius: 20px;
+        cursor: pointer; transition: 0.2s;
+    }
+    .theme-switch-slider::before {
+        content: ""; position: absolute; width: 15px; height: 15px; left: 3px; top: 3px;
+        background: #FFFFFF; border-radius: 50%; transition: 0.2s;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
+    .theme-switch input:checked + .theme-switch-slider { background: #2563EB; }
+    .theme-switch input:checked + .theme-switch-slider::before { transform: translateX(17px); }
+
+    html.dark-mode body { background: #0F172A; color: #E2E8F0; }
+
+    html.dark-mode .sidebar { background: #0F172A; border-right-color: #1E293B; }
+    html.dark-mode .theme-row .nav-label { color: #CBD5E1; }
+    html.dark-mode .nav-item { color: #94A3B8; }
+    html.dark-mode .nav-item:hover { background: #1E293B; }
+    html.dark-mode .nav-item.active { background: rgba(37,99,235,0.18); color: #93C5FD; }
+    html.dark-mode .sidebar-footer { border-top-color: #1E293B; }
+    html.dark-mode .sidebar-footer strong { color: #E2E8F0; }
+
+    html.dark-mode .topbar { background: #0F172A; border-bottom-color: #1E293B; }
+    html.dark-mode .search-box { background: #1E293B; color: #94A3B8; }
+    html.dark-mode .search-box input { color: #E2E8F0; }
+    html.dark-mode .search-box input::placeholder { color: #64748B; }
+    html.dark-mode .topbar-user { color: #E2E8F0; }
+    html.dark-mode .topbar-user:hover { background: #1E293B; }
+
+    html.dark-mode .event-card,
+    html.dark-mode .side-card,
+    html.dark-mode .list-card,
+    html.dark-mode .profile-card,
+    html.dark-mode .detail-box,
+    html.dark-mode .panel-card,
+    html.dark-mode .modal-box {
+        background: #1E293B;
+        border-color: #334155;
+    }
+
+    html.dark-mode .event-card h3,
+    html.dark-mode .list-card strong,
+    html.dark-mode .side-item strong,
+    html.dark-mode .modal-header h3,
+    html.dark-mode .view-header h1,
+    html.dark-mode .card-title,
+    html.dark-mode h1, html.dark-mode h4 {
+        color: #F1F5F9;
+    }
+
+    html.dark-mode .modal-close { color: #94A3B8; }
+    html.dark-mode .notif-dropdown { background: #1E293B; border-color: #334155; }
+    html.dark-mode .notif-item { border-bottom-color: #334155; color: #E2E8F0; }
+    html.dark-mode .notif-dropdown-header { border-bottom-color: #334155; }
+
+    html.dark-mode input,
+    html.dark-mode select,
+    html.dark-mode textarea {
+        background: #0F172A;
+        border-color: #334155;
+        color: #E2E8F0;
+    }
+
+    html.dark-mode input:focus,
+    html.dark-mode select:focus,
+    html.dark-mode textarea:focus {
+        background: #1E293B;
+    }
+
+    html.dark-mode .btn-outline {
+        background: #1E293B;
+        border-color: #334155;
+        color: #E2E8F0;
+    }
+
+    html.dark-mode .btn-outline:hover { background: #334155; }
+
+    html.dark-mode .empty-state { color: #64748B; }
+
+    html.dark-mode .hero-badge { background: rgba(255,255,255,0.14); }
 
 </style>
 </head>
@@ -803,31 +923,34 @@
         </div>
 
         <button class="nav-item active" data-view="inicio" onclick="mudarView('inicio', this)">
-            <span class="nav-icon">🏠</span>
             <span class="nav-label">Início</span>
         </button>
 
         <button class="nav-item" data-view="eventos" onclick="mudarView('eventos', this)">
-            <span class="nav-icon">📅</span>
             <span class="nav-label">Eventos</span>
         </button>
 
         <button class="nav-item" data-view="favoritos" onclick="mudarView('favoritos', this)">
-            <span class="nav-icon">♡</span>
             <span class="nav-label">Favoritos</span>
             <span class="nav-badge">3</span>
         </button>
 
         <button class="nav-item" data-view="meus-eventos" onclick="mudarView('meus-eventos', this)">
-            <span class="nav-icon">📋</span>
             <span class="nav-label">Meus Eventos</span>
             <span class="nav-badge blue">2</span>
         </button>
 
         <button class="nav-item" data-view="historico" onclick="mudarView('historico', this)">
-            <span class="nav-icon">🕐</span>
             <span class="nav-label">Histórico</span>
         </button>
+
+        <div class="theme-row">
+            <span class="nav-label">Modo escuro</span>
+            <label class="theme-switch">
+                <input type="checkbox" id="themeToggle" onchange="alternarTema()">
+                <span class="theme-switch-slider"></span>
+            </label>
+        </div>
 
         <button class="nav-item" data-view="perfil" onclick="mudarView('perfil', this)">
             <span class="nav-icon">👤</span>
@@ -849,7 +972,7 @@
     <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
 
     <!-- ================= ÁREA PRINCIPAL ================= -->
-    <div>
+    <div class="main-col">
 
         <header class="topbar">
 
@@ -869,7 +992,7 @@
                         🔔<span class="dot" style="<%= notifNaoLidas > 0 ? "" : "display:none;" %>"></span>
                     </button>
 
-                    <div class="notif-dropdown" id="notifDropdown" style="display:none; position:absolute; top:36px; right:0; width:300px; background:#FFFFFF; border:1px solid #E2E8F0; border-radius:12px; box-shadow:0 20px 45px rgba(2,6,23,0.18); z-index:30; max-height:360px; overflow-y:auto;">
+                    <div class="notif-dropdown" id="notifDropdown" style="display:none; position:absolute; top:36px; right:0; width:300px; background:#FFFFFF; border:1px solid #E2E8F0; border-radius:12px; box-shadow:0 20px 45px rgba(2,6,23,0.18); z-index:25; max-height:360px; overflow-y:auto;">
                         <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 14px; border-bottom:1px solid #F1F5F9; font-size:13px; font-weight:700;">
                             Notificações
                             <a href="${pageContext.request.contextPath}/notificacaoController?action=marcarLidas&voltarPara=/pages/home.jsp" style="font-size:11px; font-weight:600; color:#2563EB;">Marcar todas como lidas</a>
@@ -930,7 +1053,7 @@
                     <div>
 
                         <div class="side-card">
-                            <h4>📅 Meus Próximos Eventos</h4>
+                            <h4>Meus Próximos Eventos</h4>
                             <%
                                 int mostradosProximos = 0;
                                 for (inscricaoModel insc : minhasInscricoes) {
@@ -962,7 +1085,7 @@
                         </div>
 
                         <div class="side-card">
-                            <h4>♡ Favoritos</h4>
+                            <h4>Favoritos</h4>
                             <%
                                 int mostradosFav = 0;
                                 for (favoritoModel fav : meusFavoritos) {
@@ -988,7 +1111,7 @@
                         </div>
 
                         <div class="side-card">
-                            <h4>🕐 Histórico recente</h4>
+                            <h4>Histórico recente</h4>
                             <%
                                 int mostradosHist = 0;
                                 for (int i = minhasInscricoes.size() - 1; i >= 0 && mostradosHist < 3; i--) {
@@ -1137,11 +1260,11 @@
                         String badgeLabel = "Espera".equals(insc.getStatus_inscricao()) ? "Na lista de espera" : "Confirmada";
                 %>
                 <div class="list-card">
-                    <div class="thumb-sm" style="background:#EFF6FF; display:flex; align-items:center; justify-content:center; font-size:20px;">📅</div>
+                    <div class="thumb-sm" style="background:#EFF6FF;"></div>
                     <div class="info">
                         <strong><%= evM.getNome_evento() %></strong>
                         <span class="badge-status <%= badgeClasse %>"><%= badgeLabel %></span>
-                        <div class="meta">📅 <%= evM.getInicio_evento().format(fmtData) %> · <%= evM.getInicio_evento().format(fmtHora) %> · 📍 <%= evM.getLocal_evento() %></div>
+                        <div class="meta"><%= evM.getInicio_evento().format(fmtData) %> · <%= evM.getInicio_evento().format(fmtHora) %> · <%= evM.getLocal_evento() %></div>
                         <div class="meta">Inscrito em <%= insc.getData_inscricao().format(fmtData) %></div>
                     </div>
                     <div class="actions">
@@ -1219,7 +1342,7 @@
                         }
                 %>
                 <div class="list-card" style="cursor:pointer;" onclick="abrirDetalheInscricao(<%= insc.getId_inscricao() %>)">
-                    <div class="thumb-sm" style="background:#EFF6FF; display:flex; align-items:center; justify-content:center; font-size:20px;">📅</div>
+                    <div class="thumb-sm" style="background:#EFF6FF;"></div>
                     <div class="info">
                         <strong><%= evH.getNome_evento() %></strong>
                         <div class="meta"><%= rotuloCategoria(evH.getCategoria_evento()) %> · <%= evH.getInicio_evento().format(fmtData) %> · <%= evH.getLocal_evento() %></div>
@@ -1293,6 +1416,19 @@
 </div>
 
 <script>
+
+    // =========================================================
+    // MODO ESCURO
+    // =========================================================
+
+    function alternarTema() {
+        const escuro = document.getElementById('themeToggle').checked;
+        document.documentElement.classList.toggle('dark-mode', escuro);
+        localStorage.setItem('gerencia-tema', escuro ? 'escuro' : 'claro');
+    }
+
+    document.getElementById('themeToggle').checked =
+        document.documentElement.classList.contains('dark-mode');
 
     // =========================================================
     // NAVEGAÇÃO ENTRE SUB-VIEWS (sem trocar de página)
@@ -1421,7 +1557,7 @@
 
         return `
             <div class="event-card" data-categoria="\${ev.categoria}" data-id="\${ev.id}">
-                <div class="thumb" style="background:linear-gradient(135deg,#EFF6FF,#F5F3FF); display:flex; align-items:center; justify-content:center; font-size:32px;">📅
+                <div class="thumb" style="background:linear-gradient(135deg,#EFF6FF,#F5F3FF);">
                     \${ev.lotado ? '<span class="tag-lotado">Lotado</span>' : ''}
                     <button class="\${favClasse}" onclick="alternarFavorito(\${ev.id})">\${coracao}</button>
                 </div>
@@ -1430,8 +1566,8 @@
                         <span class="cat-tag">\${ev.categoria}</span>
                     </div>
                     <h3>\${ev.nome}</h3>
-                    <div class="event-meta">📍 \${ev.local}</div>
-                    <div class="event-meta">📅 \${ev.data}</div>
+                    <div class="event-meta">\${ev.local}</div>
+                    <div class="event-meta">\${ev.data}</div>
                     <div class="\${barraClasse}"><span style="width:\${ev.ocupacao}%"></span></div>
                     <div class="actions">
                         <button class="btn-outline" onclick="verDetalhes(\${ev.id})">Ver Detalhes</button>

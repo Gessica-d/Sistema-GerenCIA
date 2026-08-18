@@ -5,6 +5,7 @@ import br.com.gerencia.dao.eventoDAO;
 import br.com.gerencia.dao.inscricaoDAO;
 import br.com.gerencia.model.contratoModel;
 import br.com.gerencia.model.eventoModel;
+import br.com.gerencia.model.usuarioModel;
 import br.com.gerencia.utils.Conexao;
 
 import javax.servlet.RequestDispatcher;
@@ -14,6 +15,7 @@ import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
 import javax.servlet.http.Part;
 
 import java.io.File;
@@ -442,6 +444,8 @@ public class eventoController extends HttpServlet {
             throw new Exception("Evento não encontrado");
         }
 
+        HttpSession session = request.getSession(true);
+
         int vinculados = contarVinculadosAoEvento(idEvento);
 
         LocalDateTime dataInicio;
@@ -471,10 +475,19 @@ public class eventoController extends HttpServlet {
             capacidade = Integer.parseInt(capacidadeParametro);
 
             if (capacidade < vinculados) {
-                throw new Exception(
-                    "A capacidade não pode ser menor que o número de "
-                    + "pessoas já inscritas/na fila (" + vinculados + ")"
+
+                session.setAttribute(
+                    "flashMsg",
+                    "Não é possível reduzir a capacidade para menos que o número de "
+                    + "inscritos/na fila já existentes (" + vinculados + ")."
                 );
+
+                response.sendRedirect(
+                    request.getContextPath()
+                    + "/pages/homeOrganizador.jsp?view=eventos&abrirEvento=" + idEvento
+                );
+
+                return;
             }
 
         } else {
@@ -483,15 +496,27 @@ public class eventoController extends HttpServlet {
             dataFim = LocalDateTime.parse(fim);
 
             if (!dataFim.isAfter(dataInicio)) {
-                throw new Exception(
-                    "A data de término deve ser posterior à data de início"
+
+                session.setAttribute("flashMsg", "A data de término deve ser posterior à data de início.");
+
+                response.sendRedirect(
+                    request.getContextPath()
+                    + "/pages/homeOrganizador.jsp?view=eventos&abrirEvento=" + idEvento
                 );
+
+                return;
             }
 
             if (dataInicio.isBefore(LocalDateTime.now())) {
-                throw new Exception(
-                    "Não é possível deixar o evento com data/horário de início já no passado"
+
+                session.setAttribute("flashMsg", "Não é possível deixar o evento com data/horário de início já no passado.");
+
+                response.sendRedirect(
+                    request.getContextPath()
+                    + "/pages/homeOrganizador.jsp?view=eventos&abrirEvento=" + idEvento
                 );
+
+                return;
             }
 
             capacidade = Integer.parseInt(capacidadeParametro);
@@ -519,9 +544,11 @@ public class eventoController extends HttpServlet {
 
         eventoDAO.atualizarEvento(evento);
 
+        session.setAttribute("flashMsg", "Evento atualizado com sucesso.");
+
         response.sendRedirect(
             request.getContextPath()
-            + "/pages/homeOrganizador.jsp?view=eventos"
+            + "/pages/homeOrganizador.jsp?view=eventos&abrirEvento=" + idEvento
         );
     }
 
@@ -582,11 +609,23 @@ public class eventoController extends HttpServlet {
         int idEvento =
             Integer.parseInt(idParametro);
 
-        eventoDAO.excluirEvento(idEvento);
+        eventoDAO.excluirEventoComDependencias(idEvento);
+
+        HttpSession sessaoExclusao = request.getSession(false);
+
+        usuarioModel usuarioExclusao = sessaoExclusao != null
+            ? (usuarioModel) sessaoExclusao.getAttribute("usuarioLogado")
+            : null;
+
+        String destinoExclusao = "/pages/homeOrganizador.jsp?view=eventos";
+
+        if (usuarioExclusao != null && "admin".equals(usuarioExclusao.getTipo_usuario())) {
+            destinoExclusao = "/pages/homeAdmin.jsp?view=eventos";
+        }
 
         response.sendRedirect(
             request.getContextPath()
-            + "/pages/homeOrganizador.jsp?view=eventos"
+            + destinoExclusao
         );
     }
 
