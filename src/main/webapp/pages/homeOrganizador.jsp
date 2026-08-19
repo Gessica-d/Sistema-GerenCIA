@@ -459,9 +459,8 @@
 
     .dash-grid {
         display: grid;
-        grid-template-rows: 1fr auto;
+        grid-template-rows: auto auto;
         gap: 14px;
-        min-height: calc(100% - 6px);
         min-width: 0;
         width: 100%;
     }
@@ -511,7 +510,7 @@
     .stats-grid .stat-card:nth-child(4) strong { color: #2563EB; }
     .stats-grid .stat-card:nth-child(4) .stat-icon { background: rgba(37,99,235,0.14); color: #2563EB; }
 
-    .dash-cols { display: grid; grid-template-columns: 5fr 2fr; gap: 14px; min-height: 260px; min-width: 0; width: 100%; }
+    .dash-cols { display: grid; grid-template-columns: 5fr 2fr; gap: 14px; height: 520px; min-width: 0; width: 100%; }
 
     /* Coluna direita: cards (2x2) empilhados sobre "Próximos eventos",
        alinhada ao gráfico da esquerda que agora ocupa toda a altura */
@@ -531,7 +530,7 @@
 
     .panel-card h3 { font-size: 15px; margin-bottom: 10px; flex-shrink: 0; }
 
-    .chart-wrap { position: relative; flex: 1; min-height: 180px; }
+    .chart-wrap { position: relative; flex: 1; min-height: 140px; }
 
     #chartTooltip {
         position: absolute; background: #0F172A; color: #FFFFFF; font-size: 13px;
@@ -588,30 +587,63 @@
     }
     .tab-btn.active { background: #7C3AED; border-color: #7C3AED; color: #FFFFFF; }
 
-    /* ================= CARDS DE LISTA (evento / fornecedor) ================= */
+    /* ================= CARDS DE LISTA (fornecedor) ================= */
 
     .list-scroll { height: calc(100% - 46px); overflow-y: auto; }
 
-    .org-event-card, .fornecedor-card {
+    .fornecedor-card {
         background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px;
         padding: 14px 16px; display: flex; align-items: center; gap: 12px;
         margin-bottom: 10px; cursor: pointer; transition: 0.12s;
     }
-    .org-event-card:hover, .fornecedor-card:hover { border-color: #C4B5FD; box-shadow: 0 4px 12px rgba(124,58,237,0.08); }
+    .fornecedor-card:hover { border-color: #C4B5FD; box-shadow: 0 4px 12px rgba(124,58,237,0.08); }
 
-    .org-event-card .icon-box, .fornecedor-card .icon-box {
+    .fornecedor-card .icon-box {
         width: 38px; height: 38px; border-radius: 9px; background: #F5F3FF; color: #7C3AED;
         display: flex; align-items: center; justify-content: center; font-size: 17px; flex-shrink: 0;
     }
 
-    .org-event-card .info, .fornecedor-card .info { flex: 1; min-width: 0; }
-    .org-event-card .info strong, .fornecedor-card .info strong { font-size: 15px; margin-right: 6px; }
-    .org-event-card .info .meta, .fornecedor-card .info .meta { font-size: 13px; color: #94A3B8; margin-top: 2px; }
+    .fornecedor-card .info { flex: 1; min-width: 0; }
+    .fornecedor-card .info strong { font-size: 15px; margin-right: 6px; }
+    .fornecedor-card .info .meta { font-size: 13px; color: #94A3B8; margin-top: 2px; }
 
-    .org-event-card .capacity { width: 130px; text-align: right; flex-shrink: 0; }
-    .org-event-card .capacity strong { display: block; font-size: 14px; margin-bottom: 3px; }
+    .fornecedor-card .actions { display: flex; gap: 5px; flex-shrink: 0; }
 
-    .org-event-card .actions, .fornecedor-card .actions { display: flex; gap: 5px; flex-shrink: 0; }
+    /* ================= CARDS DE EVENTO (grid, com foto de capa) ================= */
+
+    #lista-eventos-organizador {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        gap: 16px;
+        align-content: start;
+    }
+
+    .org-event-card {
+        background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px;
+        overflow: hidden; cursor: pointer; transition: 0.12s;
+        display: flex; flex-direction: column;
+    }
+    .org-event-card:hover { border-color: #C4B5FD; box-shadow: 0 4px 12px rgba(124,58,237,0.08); }
+
+    .org-event-card .thumb {
+        height: 120px; background-size: cover; background-position: center;
+        position: relative; flex-shrink: 0;
+    }
+    .org-event-card .thumb .status-pill { position: absolute; top: 10px; left: 10px; }
+
+    .org-event-card .body {
+        padding: 14px 16px; display: flex; flex-direction: column; flex: 1;
+    }
+    .org-event-card .body strong { font-size: 15px; }
+    .org-event-card .body .meta { font-size: 13px; color: #94A3B8; margin-top: 4px; }
+
+    .org-event-card .capacity-row {
+        display: flex; align-items: center; gap: 10px; margin-top: 10px; font-size: 13px; font-weight: 600;
+    }
+    .org-event-card .capacity-row .mini-bar { flex: 1; }
+
+    .org-event-card .actions { display: flex; gap: 8px; margin-top: 12px; }
+    .org-event-card .actions button { flex: 1; }
 
     .cat-tag { font-size: 12px; font-weight: 600; color: #7C3AED; background: #F5F3FF; padding: 3px 9px; border-radius: 6px; flex-shrink: 0; }
 
@@ -745,7 +777,7 @@
 
         .menu-toggle-btn { display: flex; }
 
-        .dash-cols { grid-template-columns: 1fr; }
+        .dash-cols { grid-template-columns: 1fr; height: auto; }
         .stats-grid { grid-template-columns: repeat(2, 1fr); }
         .fields-row-2 { grid-template-columns: 1fr; }
         .detail-grid { grid-template-columns: 1fr; }
@@ -997,7 +1029,7 @@
                         <div class="panel-card">
                             <h3>Inscrições ao longo do tempo <span style="font-weight:400;color:#94A3B8;">(clique para ver Eventos)</span></h3>
                             <div class="chart-wrap" onclick="mudarViewById('eventos')" style="cursor:pointer;">
-                                <svg id="lineChart" viewBox="0 0 580 190" style="width:100%; height:100%;" preserveAspectRatio="none">
+                                <svg id="lineChart" viewBox="0 0 700 400" style="width:100%; height:100%;" preserveAspectRatio="none">
                                     <!-- eixo Y e linha desenhados via JS (renderLineChart) -->
                                 </svg>
                                 <div id="chartTooltip"></div>
@@ -1052,7 +1084,7 @@
                                 <%
                                     int mostrados = 0;
                                     for (eventoModel ev : eventosOrdenados) {
-                                        if (mostrados >= 5) break;
+                                        if (mostrados >= 6) break;
                                         mostrados++;
                                         int pct = percentualPorEvento.get(ev.getId_evento());
                                         String corClasse = pct <= 60 ? "bar-green" : (pct <= 75 ? "bar-yellow" : "bar-red");
@@ -1089,7 +1121,7 @@
                             <button class="btn-outline" onclick="exportarPDF('dashboard')">⬇ Exportar</button>
                         </div>
 
-                        <div class="table-wrap" style="max-height:180px;">
+                        <div class="table-wrap" style="max-height:228px;">
                             <table class="data-table">
                                 <thead>
                                     <tr><th>Evento</th><th>Data</th><th>Inscritos / Capacidade</th><th>Comparecimento</th><th>Ocupação</th><th>Status</th></tr>
@@ -2196,25 +2228,48 @@
     // EVENTOS — listagem com abas de status
     // =========================================================
 
+    // =========================================================
+    // FOTOS DE CAPA DOS CARDS DE EVENTO (mesmo banco usado na
+    // tela do cliente). A escolha usa o ID do evento como seed,
+    // então cada evento sempre mostra a mesma foto.
+    // =========================================================
+    const imagensPorCategoria = {
+        tecCientifico: ['1540575467063-178a50c2df87', '1531058020387-3be344556be6', '1558008258-3256797b43f3'],
+        sociais: ['1528605248644-14dd04022da1', '1519671282429-b44660ead0a7', '1511988617509-a57c8a288659'],
+        corporativos: ['1542744173-8e7e53415bb0', '1580894732444-8ecded7900cd', '1556761175-5973dc0f32e7'],
+        cultural: ['1637578035851-c5b169722de1', '1569783721854-33a99b4c0bae', '1544213456-bc37cb97df74'],
+        esportivo: ['1607627000458-210e8d2bdb1d', '1461897104016-0b3b00cc81ee', '1607962837359-5e7e89f86776'],
+        comunitario: ['1582213782179-e0d53f98f2ca', '1599059813005-11265ba4b4ce', '1544928147-79a2dbc1f389'],
+        artistico: ['1541753866388-0b3c701627d3', '1589996448606-27d38c70f3bc', '1597274303632-880ef8660375'],
+        educacional: ['1509062522246-3755977927d7', '1577896851231-70ef18881754', '1588072432836-e10032774350']
+    };
+
+    function imagemEvento(categoriaValue, seed, w, h) {
+        const pool = imagensPorCategoria[categoriaValue] || imagensPorCategoria.tecCientifico;
+        const idx = Math.abs(seed) % pool.length;
+        return 'https://images.unsplash.com/photo-' + pool[idx] + '?w=' + w + '&h=' + h + '&fit=crop&auto=format&q=65';
+    }
+
     function renderizarEventosOrganizador(filtro) {
         const lista = filtro === 'todos' ? eventosData : eventosData.filter(e => e.status === filtro);
 
         document.getElementById('lista-eventos-organizador').innerHTML = lista.map(ev => `
             <div class="org-event-card" onclick="abrirDetalheEvento(\${ev.id})">
-                <div class="icon-box"></div>
-                <div class="info">
-                    <strong>\${ev.nome}</strong>
+                <div class="thumb" style="background-color:#EFF6FF; background-image:url('\${imagemEvento(ev.categoriaValue, ev.id, 400, 240)}');">
                     <span class="status-pill \${ev.status === 'ativo' ? '' : ev.status}">\${ev.statusLabel}</span>
+                </div>
+                <div class="body">
+                    <strong>\${ev.nome}</strong>
                     <div class="meta">\${ev.inicio} · \${ev.local}</div>
-                    <div class="meta">\${ev.espera > 0 ? ev.espera + ' na lista de espera' : ''}</div>
-                </div>
-                <div class="capacity">
-                    <strong>\${ev.inscritos}/\${ev.capacidade}</strong>
-                    <div class="mini-bar"><span class="\${corBarra(ev.pct)}" style="width:\${ev.pct}%"></span></div>
-                </div>
-                <div class="actions" onclick="event.stopPropagation()">
-                    \${ev.status === 'rascunho' ? `<button class="btn-solid" onclick="publicarRascunho(\${ev.id})" title="Publicar evento">🚀 Publicar</button>` : ''}
-                    <button class="btn-outline" onclick="abrirEdicaoEvento(\${ev.id})" title="Editar evento">✎ Editar</button>
+                    \${ev.espera > 0 ? `<div class="meta" style="color:#D97706;">\${ev.espera} na lista de espera</div>` : ''}
+                    <div class="capacity-row">
+                        <span>\${ev.inscritos}/\${ev.capacidade}</span>
+                        <div class="mini-bar"><span class="\${corBarra(ev.pct)}" style="width:\${ev.pct}%"></span></div>
+                    </div>
+                    <div class="actions" onclick="event.stopPropagation()">
+                        \${ev.status === 'rascunho' ? `<button class="btn-solid" onclick="publicarRascunho(\${ev.id})" title="Publicar evento">🚀 Publicar</button>` : ''}
+                        <button class="btn-outline" onclick="abrirEdicaoEvento(\${ev.id})" title="Editar evento">✎ Editar</button>
+                    </div>
                 </div>
             </div>
         `).join('') || '<div class="empty-state">Nenhum evento nesse status.</div>';
@@ -2895,7 +2950,7 @@
         const valores = pesos.map(p => Math.round(total * p));
 
         const maxVal = Math.max(...valores, 5);
-        const W = 580, H = 190, padL = 34, padB = 20, padT = 10;
+        const W = 700, H = 400, padL = 36, padB = 26, padT = 14;
         const chartW = W - padL - 10, chartH = H - padB - padT;
 
         const pontos = valores.map((v, i) => {
@@ -2914,16 +2969,16 @@
             const val = Math.round((maxVal / 3) * i);
             const y = padT + chartH - (val / maxVal) * chartH;
             svgHtml += `<line x1="\${padL}" y1="\${y}" x2="\${W-10}" y2="\${y}" stroke="#F1F5F9" stroke-width="1"/>`;
-            svgHtml += `<text x="0" y="\${y+3}" font-size="9" fill="#94A3B8">\${val}</text>`;
+            svgHtml += `<text x="0" y="\${y+4}" font-size="10" fill="#94A3B8">\${val}</text>`;
         }
 
         svgHtml += `<polyline fill="rgba(124,58,237,0.10)" stroke="none" points="\${area}"/>`;
-        svgHtml += `<polyline fill="none" stroke="#7C3AED" stroke-width="2.5" points="\${linha}"/>`;
+        svgHtml += `<polyline fill="none" stroke="#7C3AED" stroke-width="3" points="\${linha}"/>`;
 
         pontos.forEach(p => {
-            svgHtml += `<circle cx="\${p.x}" cy="\${p.y}" r="4" fill="#7C3AED" stroke="#FFFFFF" stroke-width="1.5"
+            svgHtml += `<circle cx="\${p.x}" cy="\${p.y}" r="4.5" fill="#7C3AED" stroke="#FFFFFF" stroke-width="1.5"
                           class="chart-point" data-mes="\${p.mes}" data-valor="\${p.v}"/>`;
-            svgHtml += `<text x="\${p.x}" y="\${H-4}" font-size="9" fill="#94A3B8" text-anchor="middle">\${p.mes}</text>`;
+            svgHtml += `<text x="\${p.x}" y="\${H-6}" font-size="10" fill="#94A3B8" text-anchor="middle">\${p.mes}</text>`;
         });
 
         svg.innerHTML = svgHtml;

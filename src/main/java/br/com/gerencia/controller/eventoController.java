@@ -544,6 +544,51 @@ public class eventoController extends HttpServlet {
 
         eventoDAO.atualizarEvento(evento);
 
+        // =================================================
+        // VÍNCULO OPCIONAL DE FORNECEDOR NA EDIÇÃO
+        // Mesma lógica já usada em cadastrarEvento(): os campos
+        // "vinculo_*" só chegam preenchidos se o organizador abriu
+        // o bloco "Vincular fornecedor" no formulário de edição.
+        // Se não usou, simplesmente não faz nada aqui.
+        // =================================================
+        String idFornecedorVinculo = request.getParameter("vinculo_id_fornecedor");
+
+        if (idFornecedorVinculo != null && !idFornecedorVinculo.isBlank()) {
+
+            String dataContratoParam = request.getParameter("vinculo_data_contrato");
+            String valorPagoParam = request.getParameter("vinculo_valor_pago");
+            String valorTotalParam = request.getParameter("vinculo_valor_total");
+            String responsavel = request.getParameter("vinculo_responsavel_contrato");
+            String contato = request.getParameter("vinculo_contato_responsavel");
+            String objeto = request.getParameter("vinculo_objeto_contrato");
+
+            LocalDateTime dataContrato = (dataContratoParam != null && !dataContratoParam.isBlank())
+                ? LocalDateTime.parse(dataContratoParam + "T00:00:00")
+                : LocalDateTime.now();
+
+            double valorPago = (valorPagoParam != null && !valorPagoParam.isBlank())
+                ? Double.parseDouble(valorPagoParam) : 0;
+
+            double valorTotal = (valorTotalParam != null && !valorTotalParam.isBlank())
+                ? Double.parseDouble(valorTotalParam) : 0;
+
+            String anexo = salvarArquivoContrato(request, "vinculo_arquivo_contrato");
+
+            contratoModel contrato = new contratoModel(
+                Integer.parseInt(idFornecedorVinculo),
+                idEvento,
+                dataContrato,
+                valorPago,
+                valorTotal,
+                (responsavel != null && !responsavel.isBlank()) ? responsavel : "Não informado",
+                contato,
+                (objeto != null && !objeto.isBlank()) ? objeto : "Vinculado na edição do evento",
+                anexo
+            );
+
+            contratoDAO.adicionarContrato(contrato);
+        }
+
         session.setAttribute("flashMsg", "Evento atualizado com sucesso.");
 
         response.sendRedirect(

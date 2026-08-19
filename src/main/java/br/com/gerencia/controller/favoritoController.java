@@ -157,8 +157,15 @@ public class favoritoController extends HttpServlet {
 
         } else {
 
-            dataFavorito =
-                LocalDateTime.parse(dataFavoritoParametro);
+            // tolera formatos vindos de Date.toISOString() no front
+            // (ex: "2026-08-19T00:56:41.723Z"), removendo o sufixo
+            // de fuso ("Z") que LocalDateTime.parse não aceita.
+            String dataLimpa = dataFavoritoParametro.trim();
+            if (dataLimpa.endsWith("Z")) {
+                dataLimpa = dataLimpa.substring(0, dataLimpa.length() - 1);
+            }
+
+            dataFavorito = LocalDateTime.parse(dataLimpa);
         }
 
         // ================= VERIFICAR DUPLICIDADE =================

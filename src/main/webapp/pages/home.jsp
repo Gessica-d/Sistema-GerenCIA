@@ -14,6 +14,15 @@
 <%@ page import="java.util.ArrayList"%>
 <%@ page import="java.time.format.DateTimeFormatter"%>
 <%
+    // ================= SEM CACHE =================
+    // Evita que o navegador reaproveite uma cópia antiga desta página
+    // (ex.: após favoritar/inscrever-se, ou trocar de usuário no mesmo
+    // navegador) — sem isso, contadores como "Favoritos" e "Meus Eventos"
+    // podem continuar mostrando valores de uma sessão anterior.
+    response.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    response.setHeader("Pragma", "no-cache");
+    response.setDateHeader("Expires", 0);
+
     // ================= GUARDA DE SESSÃO =================
     usuarioModel usuarioLogado = (usuarioModel) session.getAttribute("usuarioLogado");
 
@@ -57,6 +66,14 @@
         }
     }
 
+    // total de "Meus Eventos" ativos (confirmados + em lista de espera), pro badge da sidebar
+    int totalMeusEventosAtivos = 0;
+    for (inscricaoModel insc : minhasInscricoes) {
+        if ("Confirmada".equals(insc.getStatus_inscricao()) || "Espera".equals(insc.getStatus_inscricao())) {
+            totalMeusEventosAtivos++;
+        }
+    }
+
     // favoritos do usuário logado
     List<favoritoModel> meusFavoritos = new ArrayList<favoritoModel>();
     for (favoritoModel fav : favoritoDAOJsp.listarFavoritos()) {
@@ -81,7 +98,36 @@
         if ("tecCientifico".equals(c)) return "Tecnologia";
         if ("sociais".equals(c)) return "Sociais";
         if ("corporativos".equals(c)) return "Corporativos";
-        return c;
+        // categoria nova (ainda sem rótulo customizado acima): capitaliza a primeira letra
+        if (c.isEmpty()) return c;
+        return Character.toUpperCase(c.charAt(0)) + c.substring(1);
+    }
+
+    // =========================================================
+    // FOTOS DE CAPA DOS CARDS DE EVENTO
+    // Um pequeno banco de fotos (Unsplash) por categoria, para
+    // preencher o espaço em branco no topo dos cards. A escolha
+    // dentro do pool usa o ID do evento como "seed", então cada
+    // evento sempre mostra a mesma foto (não fica trocando a
+    // cada recarregamento da página).
+    // =========================================================
+    private static final java.util.Map<String, String[]> IMAGENS_POR_CATEGORIA = new java.util.HashMap<String, String[]>();
+    static {
+        IMAGENS_POR_CATEGORIA.put("tecCientifico", new String[]{"1540575467063-178a50c2df87", "1531058020387-3be344556be6", "1558008258-3256797b43f3"});
+        IMAGENS_POR_CATEGORIA.put("sociais", new String[]{"1528605248644-14dd04022da1", "1519671282429-b44660ead0a7", "1511988617509-a57c8a288659"});
+        IMAGENS_POR_CATEGORIA.put("corporativos", new String[]{"1542744173-8e7e53415bb0", "1580894732444-8ecded7900cd", "1556761175-5973dc0f32e7"});
+        IMAGENS_POR_CATEGORIA.put("cultural", new String[]{"1637578035851-c5b169722de1", "1569783721854-33a99b4c0bae", "1544213456-bc37cb97df74"});
+        IMAGENS_POR_CATEGORIA.put("esportivo", new String[]{"1607627000458-210e8d2bdb1d", "1461897104016-0b3b00cc81ee", "1607962837359-5e7e89f86776"});
+        IMAGENS_POR_CATEGORIA.put("comunitario", new String[]{"1582213782179-e0d53f98f2ca", "1599059813005-11265ba4b4ce", "1544928147-79a2dbc1f389"});
+        IMAGENS_POR_CATEGORIA.put("artistico", new String[]{"1541753866388-0b3c701627d3", "1589996448606-27d38c70f3bc", "1597274303632-880ef8660375"});
+        IMAGENS_POR_CATEGORIA.put("educacional", new String[]{"1509062522246-3755977927d7", "1577896851231-70ef18881754", "1588072432836-e10032774350"});
+    }
+
+    private String imagemCategoria(String categoria, int seed, int w, int h) {
+        String[] ids = IMAGENS_POR_CATEGORIA.get(categoria);
+        if (ids == null) ids = IMAGENS_POR_CATEGORIA.get("tecCientifico");
+        int idx = Math.abs(seed) % ids.length;
+        return "https://images.unsplash.com/photo-" + ids[idx] + "?w=" + w + "&h=" + h + "&fit=crop&auto=format&q=65";
     }
 %>
 <!DOCTYPE html>
@@ -932,12 +978,12 @@
 
         <button class="nav-item" data-view="favoritos" onclick="mudarView('favoritos', this)">
             <span class="nav-label">Favoritos</span>
-            <span class="nav-badge">3</span>
+            <span class="nav-badge"><%= meusFavoritos.size() %></span>
         </button>
 
         <button class="nav-item" data-view="meus-eventos" onclick="mudarView('meus-eventos', this)">
             <span class="nav-label">Meus Eventos</span>
-            <span class="nav-badge blue">2</span>
+            <span class="nav-badge blue"><%= totalMeusEventosAtivos %></span>
         </button>
 
         <button class="nav-item" data-view="historico" onclick="mudarView('historico', this)">
@@ -1260,7 +1306,7 @@
                         String badgeLabel = "Espera".equals(insc.getStatus_inscricao()) ? "Na lista de espera" : "Confirmada";
                 %>
                 <div class="list-card">
-                    <div class="thumb-sm" style="background:#EFF6FF;"></div>
+                    <div class="thumb-sm" style="background-color:#EFF6FF; background-image:url('<%= imagemCategoria(evM.getCategoria_evento(), evM.getId_evento(), 140, 140) %>');"></div>
                     <div class="info">
                         <strong><%= evM.getNome_evento() %></strong>
                         <span class="badge-status <%= badgeClasse %>"><%= badgeLabel %></span>
@@ -1342,7 +1388,7 @@
                         }
                 %>
                 <div class="list-card" style="cursor:pointer;" onclick="abrirDetalheInscricao(<%= insc.getId_inscricao() %>)">
-                    <div class="thumb-sm" style="background:#EFF6FF;"></div>
+                    <div class="thumb-sm" style="background-color:#EFF6FF; background-image:url('<%= imagemCategoria(evH.getCategoria_evento(), evH.getId_evento(), 140, 140) %>');"></div>
                     <div class="info">
                         <strong><%= evH.getNome_evento() %></strong>
                         <div class="meta"><%= rotuloCategoria(evH.getCategoria_evento()) %> · <%= evH.getInicio_evento().format(fmtData) %> · <%= evH.getLocal_evento() %></div>
@@ -1519,6 +1565,7 @@
             nome: '<%= js(ev.getNome_evento()) %>',
             tipo: '<%= ev.getTipo_evento() %>',
             categoria: '<%= rotuloCategoria(ev.getCategoria_evento()) %>',
+            categoriaValue: '<%= js(ev.getCategoria_evento()) %>',
             local: '<%= js(ev.getLocal_evento()) %>',
             data: '<%= ev.getInicio_evento().format(fmtData) %> · <%= ev.getInicio_evento().format(fmtHora) %>',
             dataFim: '<%= ev.getFim_evento().format(fmtData) %> · <%= ev.getFim_evento().format(fmtHora) %>',
@@ -1538,11 +1585,33 @@
         %>
     ];
 
+    // =========================================================
+    // FOTOS DE CAPA DOS CARDS DE EVENTO (mesmo banco usado no
+    // lado servidor, para os cards montados aqui via JS)
+    // =========================================================
+    const imagensPorCategoria = {
+        tecCientifico: ['1540575467063-178a50c2df87', '1531058020387-3be344556be6', '1558008258-3256797b43f3'],
+        sociais: ['1528605248644-14dd04022da1', '1519671282429-b44660ead0a7', '1511988617509-a57c8a288659'],
+        corporativos: ['1542744173-8e7e53415bb0', '1580894732444-8ecded7900cd', '1556761175-5973dc0f32e7'],
+        cultural: ['1637578035851-c5b169722de1', '1569783721854-33a99b4c0bae', '1544213456-bc37cb97df74'],
+        esportivo: ['1607627000458-210e8d2bdb1d', '1461897104016-0b3b00cc81ee', '1607962837359-5e7e89f86776'],
+        comunitario: ['1582213782179-e0d53f98f2ca', '1599059813005-11265ba4b4ce', '1544928147-79a2dbc1f389'],
+        artistico: ['1541753866388-0b3c701627d3', '1589996448606-27d38c70f3bc', '1597274303632-880ef8660375'],
+        educacional: ['1509062522246-3755977927d7', '1577896851231-70ef18881754', '1588072432836-e10032774350']
+    };
+
+    function imagemEvento(categoriaValue, seed, w, h) {
+        const pool = imagensPorCategoria[categoriaValue] || imagensPorCategoria.tecCientifico;
+        const idx = Math.abs(seed) % pool.length;
+        return 'https://images.unsplash.com/photo-' + pool[idx] + '?w=' + w + '&h=' + h + '&fit=crop&auto=format&q=65';
+    }
+
     function criarCardEvento(ev) {
 
         const barraClasse = ev.lotado ? 'capacity-bar full' : 'capacity-bar';
         const favClasse = ev.favorito ? 'fav-btn active' : 'fav-btn';
         const coracao = ev.favorito ? '♥' : '♡';
+        const capaUrl = imagemEvento(ev.categoriaValue, ev.id, 500, 280);
 
         let botaoAcao;
         if (ev.meuStatus === 'Confirmada') {
@@ -1557,7 +1626,7 @@
 
         return `
             <div class="event-card" data-categoria="\${ev.categoria}" data-id="\${ev.id}">
-                <div class="thumb" style="background:linear-gradient(135deg,#EFF6FF,#F5F3FF);">
+                <div class="thumb" style="background-color:#EFF6FF; background-image:url('\${capaUrl}');">
                     \${ev.lotado ? '<span class="tag-lotado">Lotado</span>' : ''}
                     <button class="\${favClasse}" onclick="alternarFavorito(\${ev.id})">\${coracao}</button>
                 </div>
@@ -1662,7 +1731,7 @@
             action: ev.favorito ? 'excluir' : 'novo',
             id_usuario: '<%= usuarioLogado.getId_usuario() %>',
             id_evento: id,
-            data_favorito: new Date().toISOString()
+            data_favorito: new Date().toISOString().split('.')[0]
         };
 
         for (const chave in campos) {
@@ -1863,7 +1932,7 @@
             });
         }
 
-        renderizarGrid('grid-inicio', resultado.slice(0, 6));
+        renderizarGrid('grid-inicio', resultado);
         renderizarGrid('grid-eventos', resultado);
         document.getElementById('contador-eventos').textContent =
             resultado.length + ' evento(s) encontrado(s)';
@@ -1871,8 +1940,8 @@
         return resultado;
     }
 
-    // Início: mostra os 3 primeiros eventos públicos
-    renderizarGrid('grid-inicio', eventosPublicos().slice(0, 3));
+    // Início: mostra todos os eventos públicos
+    renderizarGrid('grid-inicio', eventosPublicos());
 
     // Eventos: mostra todos os eventos públicos por padrão
     renderizarGrid('grid-eventos', eventosPublicos());

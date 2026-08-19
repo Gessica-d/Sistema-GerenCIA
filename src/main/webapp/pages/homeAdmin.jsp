@@ -39,6 +39,33 @@
         listaUsuarios = new java.util.ArrayList<usuarioModel>();
     }
 
+    // ================= CATEGORIAS DE EVENTO (lidas do ENUM da coluna no banco) =================
+    // Sempre que a coluna gerencia.evento.categoria_evento for alterada (ALTER TABLE ... MODIFY COLUMN),
+    // esta lista é atualizada automaticamente — nenhuma edição de código é necessária.
+    List<String> categoriasEvento = new java.util.ArrayList<String>();
+    try {
+        java.sql.Statement stCategorias = Conexao.getConnection().createStatement();
+        java.sql.ResultSet rsCategorias = stCategorias.executeQuery(
+            "SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS " +
+            "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'evento' AND COLUMN_NAME = 'categoria_evento'"
+        );
+        if (rsCategorias.next()) {
+            // formato retornado pelo MySQL: enum('sociais','corporativos','tecCientifico',...)
+            String tipoColuna = rsCategorias.getString(1);
+            String valores = tipoColuna.substring(tipoColuna.indexOf('(') + 1, tipoColuna.lastIndexOf(')'));
+            for (String v : valores.split(",")) {
+                categoriasEvento.add(v.trim().replaceAll("^'|'$", ""));
+            }
+        }
+        rsCategorias.close();
+        stCategorias.close();
+    } catch (Exception ex) {
+        // fallback caso a consulta ao INFORMATION_SCHEMA falhe por algum motivo
+        categoriasEvento.add("tecCientifico");
+        categoriasEvento.add("corporativos");
+        categoriasEvento.add("sociais");
+    }
+
     // ================= LISTA REAL DE EVENTOS (todos, de todos os organizadores) =================
     eventoDAO eventoDAOJsp = new eventoDAO(Conexao.getConnection());
     inscricaoDAO inscricaoDAOAdminJsp = new inscricaoDAO(Conexao.getConnection());
@@ -91,26 +118,19 @@
         }
     }
 
-    int somaTecCientifico = 0, somaSociais = 0, somaCorporativos = 0;
-
+    // contagem dinâmica de eventos por categoria — cobre qualquer categoria do
+    // ENUM (atual ou futura), em vez de somar só tecCientifico/sociais/corporativos
+    java.util.Map<String, Integer> contagemPorCategoria = new java.util.LinkedHashMap<String, Integer>();
+    for (String cat : categoriasEvento) {
+        contagemPorCategoria.put(cat, 0);
+    }
     for (eventoModel ev : listaEventosAdmin) {
-        if ("tecCientifico".equals(ev.getCategoria_evento())) somaTecCientifico++;
-        else if ("sociais".equals(ev.getCategoria_evento())) somaSociais++;
-        else if ("corporativos".equals(ev.getCategoria_evento())) somaCorporativos++;
+        String cat = ev.getCategoria_evento();
+        contagemPorCategoria.put(cat, contagemPorCategoria.getOrDefault(cat, 0) + 1);
     }
 
-    int pctTecCientifico = totalEventosPlataforma > 0 ? Math.round(somaTecCientifico * 100f / totalEventosPlataforma) : 0;
-    int pctSociais = totalEventosPlataforma > 0 ? Math.round(somaSociais * 100f / totalEventosPlataforma) : 0;
-    int pctCorporativos = totalEventosPlataforma > 0 ? Math.round(somaCorporativos * 100f / totalEventosPlataforma) : 0;
-
-    // geometria do donut (raio 70 => circunferência 439.82), calculada a partir dos % reais
-    double circDonut = 439.82;
-    double lenTec = (pctTecCientifico / 100.0) * circDonut;
-    double lenSoc = (pctSociais / 100.0) * circDonut;
-    double lenCorp = (pctCorporativos / 100.0) * circDonut;
-    double offTec = 0;
-    double offSoc = -lenTec;
-    double offCorp = -(lenTec + lenSoc);
+    // paleta cíclica: cada categoria (na ordem do ENUM) recebe uma cor fixa
+    String[] paletaCoresCategoria = {"#2563EB", "#10B981", "#7C3AED", "#F59E0B", "#EF4444", "#0EA5E9", "#EC4899", "#84CC16"};
 
     // ================= MENSAGEM FLASH (ex: senha redefinida) =================
     String flashMsg = (String) session.getAttribute("flashMsg");
@@ -131,10 +151,13 @@
         return "Cliente";
     }
     private String rotuloCategoriaEvento(String c) {
+        if (c == null) return "";
         if ("tecCientifico".equals(c)) return "TecCientifico";
         if ("sociais".equals(c)) return "Sociais";
         if ("corporativos".equals(c)) return "Corporativos";
-        return c;
+        // categoria nova (ainda sem rótulo customizado acima): capitaliza a primeira letra
+        if (c.isEmpty()) return c;
+        return Character.toUpperCase(c.charAt(0)) + c.substring(1);
     }
     private String rotuloStatusEvento(String s) {
         if ("ativo".equals(s)) return "Ativo";
@@ -447,6 +470,7 @@
         grid-template-columns: 5fr 2fr;
         gap: 16px;
         margin-bottom: 20px;
+        height: 300px;
     }
 
     /* Coluna direita: cards (2x2) empilhados sobre "Usuários por tipo de conta",
@@ -454,7 +478,7 @@
     .dash-right-col {
         display: flex;
         flex-direction: column;
-        gap: 14px;
+        gap: 10px;
         min-width: 0;
         min-height: 0;
         width: 100%;
@@ -464,23 +488,24 @@
         background: #FFFFFF;
         border: 1px solid #E2E8F0;
         border-radius: 12px;
-        padding: 20px;
+        padding: 16px 20px;
         display: flex;
         flex-direction: column;
         min-height: 0;
         min-width: 0;
+        overflow-y: auto;
     }
 
     .panel-card h3 { font-size: 16px; margin-bottom: 4px; }
-    .panel-card .hint { font-size: 13px; color: #94A3B8; margin-bottom: 16px; }
+    .panel-card .hint { font-size: 13px; color: #94A3B8; margin-bottom: 12px; }
 
     .vbar-wrap {
         display: flex;
         align-items: flex-end;
         justify-content: space-evenly;
-        gap: 24px;
+        gap: 10px;
         flex: 1;
-        min-height: 160px;
+        min-height: 120px;
         padding: 0 8px;
     }
 
@@ -491,21 +516,22 @@
         justify-content: flex-end;
         height: 100%;
         flex: 1;
-        max-width: 110px;
+        max-width: 90px;
+        min-width: 0;
         cursor: pointer;
     }
 
-    .vbar-value { font-size: 13px; font-weight: 700; color: #0F172A; margin-bottom: 6px; }
+    .vbar-value { font-size: 12px; font-weight: 700; color: #0F172A; margin-bottom: 6px; }
 
     .vbar {
-        width: 44px;
-        border-radius: 14px;
+        width: 32px;
+        border-radius: 12px;
         transition: 0.15s;
     }
     .vbar-col:hover .vbar { transform: scaleX(1.08); }
 
-    .vbar-label { font-size: 12px; color: #64748B; margin-top: 10px; text-align: center; }
-    .vbar-count { font-size: 11px; color: #94A3B8; }
+    .vbar-label { font-size: 11px; color: #64748B; margin-top: 10px; text-align: center; line-height: 1.3; }
+    .vbar-count { font-size: 10px; color: #94A3B8; }
 
     .chart-legend-line {
         display: flex;
@@ -520,6 +546,24 @@
         width: 8px;
         height: 8px;
         border-radius: 50%;
+    }
+
+    /* ================= FORM (Meu Perfil) ================= */
+
+    .form-card { background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 22px; max-width: 1200px; min-width: 0; width: 100%; }
+
+    .field { margin-bottom: 15px; }
+    .field label { display: block; font-size: 14px; font-weight: 600; color: #334155; margin-bottom: 5px; }
+    .field input, .field select, .field textarea {
+        width: 100%; padding: 9px 11px; border: 1px solid #E2E8F0; border-radius: 8px;
+        font-size: 15px; font-family: inherit; background: #F8FAFC;
+    }
+    .field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: #7C3AED; background: #FFFFFF; }
+
+    .fields-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+    @media (max-width: 700px) {
+        .fields-row-2 { grid-template-columns: 1fr; }
     }
 
     /* ================= TABELA ================= */
@@ -781,6 +825,7 @@
     html.dark-mode .stat-card,
     html.dark-mode .panel-card,
     html.dark-mode .categoria-card,
+    html.dark-mode .form-card,
     html.dark-mode .modal-box {
         background: #1E293B;
         border-color: #334155;
@@ -888,7 +933,7 @@
                 <strong>GerenCIA</strong>
                 <span>Painel Administrativo</span>
             </div>
-            <div class="topbar-user">
+            <div class="topbar-user" style="cursor:pointer;" onclick="mudarViewById('perfil')" title="Meu Perfil">
                 <span class="eye-icon">👁</span>
                 <div class="avatar" style="width:30px;height:30px;font-size:11px;"><%= iniciais %></div>
                 <%= nomeUsuario %> ⌄
@@ -919,25 +964,22 @@
                             <div class="empty-state">Nenhum evento cadastrado ainda.</div>
                         <% } else { %>
                         <div class="vbar-wrap">
-
-                            <div class="vbar-col" onclick="mudarView('eventos', document.querySelector('[data-view=eventos]')); filtrarEventosPorCategoria('tecCientifico');">
-                                <span class="vbar-value"><%= pctTecCientifico %>%</span>
-                                <div class="vbar" style="height:<%= pctTecCientifico > 0 ? pctTecCientifico + "%" : "4px" %>; background:#2563EB;"></div>
-                                <span class="vbar-label">TecCientifico<br><span class="vbar-count"><%= somaTecCientifico %> evento(s)</span></span>
+                            <%
+                                int idxCategoria = 0;
+                                for (String cat : categoriasEvento) {
+                                    int qtdCat = contagemPorCategoria.getOrDefault(cat, 0);
+                                    int pctCat = totalEventosPlataforma > 0 ? Math.round(qtdCat * 100f / totalEventosPlataforma) : 0;
+                                    String corCat = paletaCoresCategoria[idxCategoria % paletaCoresCategoria.length];
+                                    idxCategoria++;
+                            %>
+                            <div class="vbar-col" onclick="mudarView('eventos', document.querySelector('[data-view=eventos]')); filtrarEventosPorCategoria('<%= cat %>');">
+                                <span class="vbar-value"><%= pctCat %>%</span>
+                                <div class="vbar" style="height:<%= pctCat > 0 ? pctCat + "%" : "4px" %>; background:<%= corCat %>;"></div>
+                                <span class="vbar-label"><%= rotuloCategoriaEvento(cat) %><br><span class="vbar-count"><%= qtdCat %> evento(s)</span></span>
                             </div>
-
-                            <div class="vbar-col" onclick="mudarView('eventos', document.querySelector('[data-view=eventos]')); filtrarEventosPorCategoria('sociais');">
-                                <span class="vbar-value"><%= pctSociais %>%</span>
-                                <div class="vbar" style="height:<%= pctSociais > 0 ? pctSociais + "%" : "4px" %>; background:#10B981;"></div>
-                                <span class="vbar-label">Sociais<br><span class="vbar-count"><%= somaSociais %> evento(s)</span></span>
-                            </div>
-
-                            <div class="vbar-col" onclick="mudarView('eventos', document.querySelector('[data-view=eventos]')); filtrarEventosPorCategoria('corporativos');">
-                                <span class="vbar-value"><%= pctCorporativos %>%</span>
-                                <div class="vbar" style="height:<%= pctCorporativos > 0 ? pctCorporativos + "%" : "4px" %>; background:#7C3AED;"></div>
-                                <span class="vbar-label">Corporativos<br><span class="vbar-count"><%= somaCorporativos %> evento(s)</span></span>
-                            </div>
-
+                            <%
+                                }
+                            %>
                         </div>
                         <% } %>
                     </div>
@@ -986,9 +1028,9 @@
 
                         <div class="panel-card" style="flex:1;">
                             <h3>Usuários por tipo de conta</h3>
-                            <p class="hint">Distribuição atual (sem histórico — o banco não guarda data de criação do usuário)</p>
+                            <p class="hint">Distribuição atual dos usuários cadastrados</p>
 
-                            <div style="display:flex; flex-direction:column; gap:12px; margin-top:10px;">
+                            <div style="display:flex; flex-direction:column; gap:8px; margin-top:6px;">
                                 <div>
                                     <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;">
                                         <span>Clientes</span><strong><%= totalClientesAdmin %></strong>
@@ -1020,7 +1062,7 @@
                         <button class="btn-outline" onclick="mudarView('eventos', document.querySelector('[data-view=eventos]'))">Ver todos</button>
                     </div>
 
-                    <div class="table-wrap" style="max-height:220px; overflow-y:auto;">
+                    <div class="table-wrap" style="max-height:300px; overflow-y:auto;">
                         <table class="data-table">
                             <thead>
                                 <tr>
@@ -1032,7 +1074,7 @@
                                 <%
                                     int mostradosRecentes = 0;
                                     for (eventoModel ev : listaEventosAdmin) {
-                                        if (mostradosRecentes >= 5) break;
+                                        if (mostradosRecentes >= 15) break;
                                         mostradosRecentes++;
 
                                         int confirmadosEv = confirmadosPorEventoAdmin.getOrDefault(ev.getId_evento(), 0);
@@ -1091,9 +1133,13 @@
                     </select>
                     <select class="filter-select" id="filtroCategoriaAdmin" onchange="filtrarEventosAdmin()">
                         <option value="">Todas as categorias</option>
-                        <option value="tecCientifico">TecCientifico</option>
-                        <option value="corporativos">Corporativos</option>
-                        <option value="sociais">Sociais</option>
+                        <%
+                            for (String cat : categoriasEvento) {
+                        %>
+                        <option value="<%= cat %>"><%= rotuloCategoriaEvento(cat) %></option>
+                        <%
+                            }
+                        %>
                     </select>
                     <select class="filter-select" id="filtroOrganizadorAdmin" onchange="filtrarEventosAdmin()">
                         <option value="">Todos os organizadores</option>
@@ -1252,6 +1298,65 @@
                         <tbody id="corpo-usuarios"></tbody>
                     </table>
                 </div>
+
+            </section>
+
+            <!-- ============================================================
+                 VIEW: MEU PERFIL
+            ============================================================ -->
+            <section class="view-section" id="view-perfil">
+
+                <div class="view-header">
+                    <div>
+                        <h1>Meu Perfil</h1>
+                        <p>Gerencie suas informações pessoais</p>
+                    </div>
+                </div>
+
+                <div class="panel-card" style="max-width:640px; margin-bottom:16px; flex-direction:row; align-items:center; gap:16px;">
+                    <div class="avatar" style="width:56px;height:56px;font-size:17px;"><%= iniciais %></div>
+                    <div>
+                        <div style="font-weight:700; font-size:15px;"><%= nomeUsuario %></div>
+                        <div style="font-size:11px; color:#94A3B8;">CPF: <%= usuarioLogado.getCPF_usuario() %> · Administrador</div>
+                    </div>
+                </div>
+
+                <form class="form-card" style="max-width:640px;"
+                      action="${pageContext.request.contextPath}/usuarioController" method="post">
+
+                    <input type="hidden" name="action" value="atualizar">
+                    <input type="hidden" name="id_usuario" value="<%= usuarioLogado.getId_usuario() %>">
+
+                    <div class="fields-row-2">
+                        <div class="field">
+                            <label>Nome completo</label>
+                            <input type="text" name="nome_usuario" value="<%= nomeUsuario %>">
+                        </div>
+                        <div class="field">
+                            <label>E-mail</label>
+                            <input type="email" name="email_usuario" value="<%= usuarioLogado.getEmail_usuario() %>">
+                        </div>
+                    </div>
+
+                    <div class="fields-row-2">
+                        <div class="field">
+                            <label>CPF</label>
+                            <input type="text" value="<%= usuarioLogado.getCPF_usuario() %>" disabled>
+                        </div>
+                        <div class="field">
+                            <label>Telefone</label>
+                            <input type="tel" name="telefone" value="<%= usuarioLogado.getTelefone() %>">
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <label>Tipo de conta</label>
+                        <input type="text" value="Administrador" disabled>
+                    </div>
+
+                    <button type="submit" class="btn-solid">Salvar alterações</button>
+
+                </form>
 
             </section>
 
