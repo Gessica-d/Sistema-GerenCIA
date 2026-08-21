@@ -27,8 +27,11 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.sql.Connection;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
+// CRUD de eventos: criação, edição (trava campos sensíveis se já tem
+// inscrito), publicação, busca e exclusão em cascata
 @WebServlet("/eventoController")
 @MultipartConfig(
     maxFileSize = 10 * 1024 * 1024,       // 10MB por arquivo
@@ -42,7 +45,49 @@ public class eventoController extends HttpServlet {
     private inscricaoDAO inscricaoDAO;
     private contratoDAO contratoDAO;
 
-    // ================= INIT =================
+    // métodos estáticos pra JSP consultar sem tocar em DAO diretamente
+
+    public static List<eventoModel> listarTodos() throws Exception {
+        return new eventoDAO(Conexao.getConnection()).listarEventos();
+    }
+
+    public static eventoModel buscarPorId(int idEvento) throws Exception {
+        return new eventoDAO(Conexao.getConnection()).buscarPorId(idEvento);
+    }
+
+    // lê as categorias direto do ENUM da coluna no banco, assim se a
+    // coluna mudar (ALTER TABLE) a lista se atualiza sozinha
+    public static List<String> listarCategoriasDisponiveis() {
+
+        List<String> categorias = new ArrayList<String>();
+
+        try {
+            java.sql.Statement st = Conexao.getConnection().createStatement();
+            java.sql.ResultSet rs = st.executeQuery(
+                "SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS "
+                + "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'evento' AND COLUMN_NAME = 'categoria_evento'"
+            );
+            if (rs.next()) {
+                // formato retornado pelo MySQL: enum('sociais','corporativos','tecCientifico',...)
+                String tipoColuna = rs.getString(1);
+                String valores = tipoColuna.substring(tipoColuna.indexOf('(') + 1, tipoColuna.lastIndexOf(')'));
+                for (String v : valores.split(",")) {
+                    categorias.add(v.trim().replaceAll("^'|'$", ""));
+                }
+            }
+            rs.close();
+            st.close();
+        } catch (Exception ex) {
+            // fallback caso a consulta ao INFORMATION_SCHEMA falhe por algum motivo
+            categorias.add("tecCientifico");
+            categorias.add("corporativos");
+            categorias.add("sociais");
+        }
+
+        return categorias;
+    }
+
+    // INIT
     @Override
     public void init() {
 
@@ -60,11 +105,9 @@ public class eventoController extends HttpServlet {
         }
     }
 
-    // =====================================================
     // Quantidade de pessoas já vinculadas ao evento
     // (confirmadas + em lista de espera). Usado para travar a
     // edição de campos sensíveis quando já existe alguém inscrito.
-    // =====================================================
     private int contarVinculadosAoEvento(int idEvento) throws Exception {
 
         int confirmados = inscricaoDAO.contarConfirmados(idEvento);
@@ -73,10 +116,8 @@ public class eventoController extends HttpServlet {
         return confirmados + emEspera;
     }
 
-    // =====================================================
     // SALVAR ARQUIVO DO CONTRATO (upload), usado quando um
     // fornecedor é vinculado já na tela de criação do evento.
-    // =====================================================
     private String salvarArquivoContrato(HttpServletRequest request, String nomeCampo) throws Exception {
 
         Part filePart = request.getPart(nomeCampo);
@@ -123,7 +164,7 @@ public class eventoController extends HttpServlet {
         return "uploads/contratos/" + nomeArmazenado;
     }
 
-    // ================= GET =================
+    // GET
     @Override
     protected void doGet(HttpServletRequest request,
                          HttpServletResponse response)
@@ -153,7 +194,7 @@ public class eventoController extends HttpServlet {
         }
     }
 
-    // ================= POST =================
+    // POST
     @Override
     protected void doPost(HttpServletRequest request,
                           HttpServletResponse response)
@@ -194,7 +235,7 @@ public class eventoController extends HttpServlet {
         }
     }
 
-    // ================= CADASTRAR =================
+    // CADASTRAR
     private void cadastrarEvento(HttpServletRequest request,
                                  HttpServletResponse response)
             throws Exception {
@@ -232,7 +273,7 @@ public class eventoController extends HttpServlet {
         String idOrganizador =
             request.getParameter("id_organizador");
 
-        // ================= VALIDAÇÕES =================
+        // VALIDAÇÕES
 
         if (nome == null || nome.isBlank()) {
             throw new Exception("Nome do evento obrigatório");
@@ -308,12 +349,10 @@ public class eventoController extends HttpServlet {
 
         int idEventoGerado = eventoDAO.adicionarEvento(evento);
 
-        // =================================================
         // VÍNCULO OPCIONAL DE FORNECEDOR JÁ NA CRIAÇÃO
         // Campos "vinculo_*" só chegam preenchidos se o organizador
         // abriu o bloco "Vincular fornecedor" no formulário de criar
         // evento. Se não usou, simplesmente não faz nada aqui.
-        // =================================================
         String idFornecedorVinculo = request.getParameter("vinculo_id_fornecedor");
 
         if (idFornecedorVinculo != null && !idFornecedorVinculo.isBlank()) {
@@ -358,7 +397,7 @@ public class eventoController extends HttpServlet {
         );
     }
 
-    // ================= ATUALIZAR =================
+    // ATUALIZAR
     private void atualizarEvento(HttpServletRequest request,
                                  HttpServletResponse response)
             throws Exception {
@@ -452,16 +491,9 @@ public class eventoController extends HttpServlet {
         LocalDateTime dataFim;
         int capacidade;
 
-        // =================================================
-        // TRAVA DE CAMPOS SENSÍVEIS
-        // Assim que o evento já tem alguém inscrito (confirmado
-        // ou em lista de espera), nome/tipo/datas/local/código/
-        // categoria não podem mais mudar — o servidor ignora
-        // qualquer valor recebido para esses campos e preserva
-        // o que já está salvo. Descrição, status e (com ressalva)
-        // capacidade continuam editáveis, além dos fornecedores/
-        // contratos, que são tratados em outro controller.
-        // =================================================
+        // se já tem inscrito, trava nome/tipo/datas/local/código/categoria
+        // e mantém o que já estava salvo (só descrição, status e
+        // capacidade continuam editáveis)
         if (vinculados > 0) {
 
             nome = existente.getNome_evento();
@@ -544,13 +576,8 @@ public class eventoController extends HttpServlet {
 
         eventoDAO.atualizarEvento(evento);
 
-        // =================================================
-        // VÍNCULO OPCIONAL DE FORNECEDOR NA EDIÇÃO
-        // Mesma lógica já usada em cadastrarEvento(): os campos
-        // "vinculo_*" só chegam preenchidos se o organizador abriu
-        // o bloco "Vincular fornecedor" no formulário de edição.
-        // Se não usou, simplesmente não faz nada aqui.
-        // =================================================
+        // vínculo de fornecedor é opcional aqui — só entra se os campos
+        // "vinculo_*" vierem preenchidos (mesma lógica de cadastrarEvento)
         String idFornecedorVinculo = request.getParameter("vinculo_id_fornecedor");
 
         if (idFornecedorVinculo != null && !idFornecedorVinculo.isBlank()) {
@@ -597,7 +624,7 @@ public class eventoController extends HttpServlet {
         );
     }
 
-    // ================= BUSCAR POR ID =================
+    // BUSCAR POR ID
     private void buscarEvento(HttpServletRequest request,
                               HttpServletResponse response)
             throws Exception {
@@ -637,7 +664,7 @@ public class eventoController extends HttpServlet {
         dispatcher.forward(request, response);
     }
 
-    // ================= EXCLUIR =================
+    // EXCLUIR
     private void excluirEvento(HttpServletRequest request,
                                HttpServletResponse response)
             throws Exception {
@@ -674,7 +701,7 @@ public class eventoController extends HttpServlet {
         );
     }
 
-    // ================= LISTAR =================
+    // LISTAR
     private void listarEventos(HttpServletRequest request,
                                HttpServletResponse response)
             throws Exception {

@@ -8,6 +8,7 @@ import java.util.List;
 
 import br.com.gerencia.model.contratoModel;
 
+// acesso à tabela contrato (fornecedor + evento, valores e o anexo)
 public class contratoDAO {
 
     private Connection conexao;
@@ -17,7 +18,7 @@ public class contratoDAO {
         this.conexao = conexao;
     }
 
-    // ================= ADICIONAR CONTRATO =================
+    // ADICIONAR CONTRATO
     public void adicionarContrato(contratoModel contrato) throws Exception {
 
         String sql = "INSERT INTO contrato "
@@ -43,7 +44,7 @@ public class contratoDAO {
         stmt.close();
     }
 
-    // ================= LISTAR CONTRATOS =================
+    // LISTAR CONTRATOS
     public List<contratoModel> listarContratos() throws Exception {
 
         List<contratoModel> contratos = new ArrayList<>();
@@ -77,7 +78,7 @@ public class contratoDAO {
         return contratos;
     }
 
-    // ================= BUSCAR CONTRATO POR ID =================
+    // BUSCAR CONTRATO POR ID
     public contratoModel buscarPorId(int idContrato) throws Exception {
 
         String sql = "SELECT * FROM contrato WHERE id_contrato = ?";
@@ -112,7 +113,7 @@ public class contratoDAO {
         return contrato;
     }
 
-    // ================= ATUALIZAR CONTRATO =================
+    // ATUALIZAR CONTRATO
     public void atualizarContrato(contratoModel contrato) throws Exception {
 
         String sql = "UPDATE contrato SET "
@@ -145,7 +146,7 @@ public class contratoDAO {
         stmt.close();
     }
 
-    // ================= EXCLUIR CONTRATO =================
+    // EXCLUIR CONTRATO
     public void excluirContrato(int idContrato) throws Exception {
 
         String sql = "DELETE FROM contrato WHERE id_contrato = ?";

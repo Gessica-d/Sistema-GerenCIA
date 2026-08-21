@@ -8,6 +8,8 @@ import java.util.List;
 
 import br.com.gerencia.model.favoritoModel;
 
+// acesso à tabela favorito (id_usuario + id_evento é a chave primária,
+// evita duplicidade sem checagem manual)
 public class favoritoDAO {
 
     private Connection conexao;
@@ -17,7 +19,7 @@ public class favoritoDAO {
         this.conexao = conexao;
     }
 
-    // ================= ADICIONAR FAVORITO =================
+    // ADICIONAR FAVORITO
     public void adicionarFavorito(favoritoModel favorito) throws Exception {
 
         String sql = "INSERT INTO favorito "
@@ -35,7 +37,7 @@ public class favoritoDAO {
         stmt.close();
     }
 
-    // ================= LISTAR FAVORITOS =================
+    // LISTAR FAVORITOS
     public List<favoritoModel> listarFavoritos() throws Exception {
 
         List<favoritoModel> favoritos = new ArrayList<>();
@@ -62,7 +64,7 @@ public class favoritoDAO {
         return favoritos;
     }
 
-    // ================= BUSCAR FAVORITO =================
+    // BUSCAR FAVORITO
     public favoritoModel buscarFavorito(int idUsuario, int idEvento) throws Exception {
 
         String sql = "SELECT * FROM favorito "
@@ -92,7 +94,7 @@ public class favoritoDAO {
         return favorito;
     }
 
-    // ================= EXCLUIR FAVORITO =================
+    // EXCLUIR FAVORITO
     public void excluirFavorito(int idUsuario, int idEvento) throws Exception {
 
         String sql = "DELETE FROM favorito "

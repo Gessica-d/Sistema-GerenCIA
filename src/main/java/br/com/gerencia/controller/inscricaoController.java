@@ -20,7 +20,10 @@ import javax.servlet.http.HttpSession;
 import java.io.IOException;
 import java.sql.Connection;
 import java.time.LocalDateTime;
+import java.util.List;
 
+// inscrições dos usuários finais nos eventos: cadastro, cancelamento
+// (com promoção automática da lista de espera) e check-in
 @WebServlet("/inscricaoController")
 public class inscricaoController extends HttpServlet {
 
@@ -30,7 +33,25 @@ public class inscricaoController extends HttpServlet {
     private eventoDAO eventoDAO;
     private notificacaoDAO notificacaoDAO;
 
-    // ================= INIT =================
+    // métodos estáticos pra JSP consultar sem tocar em DAO diretamente
+
+    public static List<inscricaoModel> listarTodos() throws Exception {
+        return new inscricaoDAO(Conexao.getConnection()).listarInscricoes();
+    }
+
+    public static int contarConfirmados(int idEvento) throws Exception {
+        return new inscricaoDAO(Conexao.getConnection()).contarConfirmados(idEvento);
+    }
+
+    public static int contarEspera(int idEvento) throws Exception {
+        return new inscricaoDAO(Conexao.getConnection()).contarEspera(idEvento);
+    }
+
+    public static List<inscricaoModel> listarPorEventoEStatus(int idEvento, String status) throws Exception {
+        return new inscricaoDAO(Conexao.getConnection()).listarPorEventoEStatus(idEvento, status);
+    }
+
+    // INIT
     @Override
     public void init() {
 
@@ -50,7 +71,7 @@ public class inscricaoController extends HttpServlet {
         }
     }
 
-    // ================= GET =================
+    // GET
     @Override
     protected void doGet(HttpServletRequest request,
                          HttpServletResponse response)
@@ -92,7 +113,7 @@ public class inscricaoController extends HttpServlet {
         }
     }
 
-    // ================= POST =================
+    // POST
     @Override
     protected void doPost(HttpServletRequest request,
                           HttpServletResponse response)
@@ -141,7 +162,12 @@ public class inscricaoController extends HttpServlet {
         }
     }
 
-    // ================= CADASTRAR =================
+    // CADASTRAR
+    // status_inscricao (Confirmada/Espera) já vem decidido do front-end,
+    // que compara inscritos x capacidade no momento em que a página
+    // carregou. Não há verificação de capacidade de novo aqui no
+    // servidor antes de gravar — em tese, duas pessoas confirmando a
+    // última vaga ao mesmo tempo poderiam passar do limite.
     private void cadastrarInscricao(HttpServletRequest request,
                                     HttpServletResponse response)
             throws Exception {
@@ -167,7 +193,7 @@ public class inscricaoController extends HttpServlet {
         String posicaoFilaParametro =
             request.getParameter("posicao_fila");
 
-        // ================= VALIDAÇÕES =================
+        // VALIDAÇÕES
 
         if (idEventoParametro == null
                 || idEventoParametro.isBlank()) {
@@ -211,7 +237,7 @@ public class inscricaoController extends HttpServlet {
             posicaoFilaParametro = "0";
         }
 
-        // ================= CONVERSÕES =================
+        // CONVERSÕES
 
         int idEvento =
             Integer.parseInt(idEventoParametro);
@@ -230,7 +256,7 @@ public class inscricaoController extends HttpServlet {
         int posicaoFila =
             Integer.parseInt(posicaoFilaParametro);
 
-        // ================= MODEL =================
+        // MODEL
 
         inscricaoModel inscricao =
             new inscricaoModel(
@@ -243,24 +269,17 @@ public class inscricaoController extends HttpServlet {
                 posicaoFila
             );
 
-        // ================= DAO =================
+        // DAO
 
         inscricaoDAO.adicionarInscricao(inscricao);
 
-        // ================= REDIRECT =================
-        // Antes redirecionava para "/inscricaoController?action=listar",
-        // que cai em listarInscricoes() -> forward para
-        // "/pages/listaInscricoes.jsp", um JSP que não existe neste
-        // projeto (daí o 404 "JSP file not found" mesmo com a
-        // inscrição já salva no banco). Agora volta para a mesma tela
-        // de onde o usuário se inscreveu, na aba "Meus Eventos".
         response.sendRedirect(
             request.getContextPath()
             + "/pages/home.jsp?view=meus-eventos"
         );
     }
 
-    // ================= ATUALIZAR =================
+    // ATUALIZAR
     private void atualizarInscricao(HttpServletRequest request,
                                     HttpServletResponse response)
             throws Exception {
@@ -289,7 +308,7 @@ public class inscricaoController extends HttpServlet {
         String posicaoFilaParametro =
             request.getParameter("posicao_fila");
 
-        // ================= VALIDAÇÕES =================
+        // VALIDAÇÕES
 
         if (idInscricaoParametro == null
                 || idInscricaoParametro.isBlank()) {
@@ -343,7 +362,7 @@ public class inscricaoController extends HttpServlet {
             posicaoFilaParametro = "0";
         }
 
-        // ================= CONVERSÕES =================
+        // CONVERSÕES
 
         int idInscricao =
             Integer.parseInt(idInscricaoParametro);
@@ -365,7 +384,7 @@ public class inscricaoController extends HttpServlet {
         int posicaoFila =
             Integer.parseInt(posicaoFilaParametro);
 
-        // ================= MODEL =================
+        // MODEL
 
         inscricaoModel inscricao =
             new inscricaoModel(
@@ -379,7 +398,7 @@ public class inscricaoController extends HttpServlet {
                 posicaoFila
             );
 
-        // ================= DAO =================
+        // DAO
 
         inscricaoDAO.atualizarInscricao(inscricao);
 
@@ -391,7 +410,7 @@ public class inscricaoController extends HttpServlet {
         );
     }
 
-    // ================= BUSCAR POR ID =================
+    // BUSCAR POR ID
     private void buscarInscricao(HttpServletRequest request,
                                  HttpServletResponse response)
             throws Exception {
@@ -432,7 +451,7 @@ public class inscricaoController extends HttpServlet {
         dispatcher.forward(request, response);
     }
 
-    // ================= EXCLUIR =================
+    // EXCLUIR
     private void excluirInscricao(HttpServletRequest request,
                                   HttpServletResponse response)
             throws Exception {
@@ -460,10 +479,10 @@ public class inscricaoController extends HttpServlet {
         );
     }
 
-    // =====================================================
-    // CANCELAR INSCRIÇÃO (com promoção automática da lista
-    // de espera + notificações — regra de negócio do escopo)
-    // =====================================================
+    // CANCELAR — marca como Cancelada (mantém o histórico) e, se a
+    // inscrição cancelada estava Confirmada, promove o primeiro da fila
+    // de espera (buscarProximoNaFila ordena por data_inscricao) e avisa
+    // organizador e usuário promovido por notificação
     private void cancelarInscricao(HttpServletRequest request,
                                    HttpServletResponse response)
             throws Exception {
@@ -537,7 +556,7 @@ public class inscricaoController extends HttpServlet {
             }
         }
 
-        // ================= REDIRECT =================
+        // REDIRECT
 
         HttpSession session = request.getSession(false);
 
@@ -554,14 +573,10 @@ public class inscricaoController extends HttpServlet {
         response.sendRedirect(request.getContextPath() + destino);
     }
 
-    // =====================================================
-    // REALIZAR CHECK-IN
-    // Só é permitido se:
-    //  - a inscrição existe e está com status "Confirmada";
-    //  - o check-in ainda não foi feito;
-    //  - o momento atual está dentro do período do evento
-    //    (entre o início e o fim do evento).
-    // =====================================================
+    // CHECK-IN — só permite se a inscrição está Confirmada, ainda não
+    // tem check-in e o horário atual está dentro do período do evento.
+    // Essa validação de horário é feita aqui, não só no JS, pra não dar
+    // pra burlar editando o front-end
     private void realizarCheckin(HttpServletRequest request,
                                  HttpServletResponse response)
             throws Exception {
@@ -617,7 +632,7 @@ public class inscricaoController extends HttpServlet {
             }
         }
 
-        // ================= REDIRECT =================
+        // REDIRECT
 
         HttpSession session = request.getSession(false);
 
@@ -641,14 +656,8 @@ public class inscricaoController extends HttpServlet {
         response.sendRedirect(request.getContextPath() + destino + query);
     }
 
-    // =====================================================
-    // LISTAR (fallback quando nenhuma action reconhecida é
-    // informada). Antes tentava encaminhar para
-    // "/pages/listaInscricoes.jsp", um JSP que não existe neste
-    // projeto — a listagem de inscrições do usuário já é feita
-    // dentro de home.jsp (aba "Meus Eventos"), então simplesmente
-    // mandamos para lá em vez de gerar um 404.
-    // =====================================================
+    // fallback quando nenhuma action é reconhecida — manda pra
+    // "Meus Eventos", que já lista as inscrições do usuário
     private void listarInscricoes(HttpServletRequest request,
                                   HttpServletResponse response)
             throws Exception {

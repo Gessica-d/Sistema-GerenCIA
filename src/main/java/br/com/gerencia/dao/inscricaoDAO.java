@@ -9,6 +9,8 @@ import java.util.List;
 
 import br.com.gerencia.model.inscricaoModel;
 
+// acesso à tabela inscricao. buscarProximoNaFila ordena por data_inscricao
+// ASC (FIFO) pra saber quem promover quando abre vaga
 public class inscricaoDAO {
 
     private Connection conexao;
@@ -18,7 +20,7 @@ public class inscricaoDAO {
         this.conexao = conexao;
     }
 
-    // ================= ADICIONAR INSCRIÇÃO =================
+    // ADICIONAR INSCRIÇÃO
     public void adicionarInscricao(inscricaoModel inscricao) throws Exception {
 
         String sql = "INSERT INTO inscricao "
@@ -45,7 +47,7 @@ public class inscricaoDAO {
         stmt.close();
     }
 
-    // ================= LISTAR INSCRIÇÕES =================
+    // LISTAR INSCRIÇÕES
     public List<inscricaoModel> listarInscricoes() throws Exception {
 
         List<inscricaoModel> inscricoes = new ArrayList<>();
@@ -77,7 +79,7 @@ public class inscricaoDAO {
         return inscricoes;
     }
 
-    // ================= BUSCAR INSCRIÇÃO POR ID =================
+    // BUSCAR INSCRIÇÃO POR ID
     public inscricaoModel buscarPorId(int idInscricao) throws Exception {
 
         String sql = "SELECT * FROM inscricao WHERE id_inscricao = ?";
@@ -110,7 +112,7 @@ public class inscricaoDAO {
         return inscricao;
     }
 
-    // ================= ATUALIZAR INSCRIÇÃO =================
+    // ATUALIZAR INSCRIÇÃO
     public void atualizarInscricao(inscricaoModel inscricao) throws Exception {
 
         String sql = "UPDATE inscricao SET "
@@ -143,7 +145,7 @@ public class inscricaoDAO {
         stmt.close();
     }
 
-    // ================= EXCLUIR INSCRIÇÃO =================
+    // EXCLUIR INSCRIÇÃO
     public void excluirInscricao(int idInscricao) throws Exception {
 
         String sql = "DELETE FROM inscricao WHERE id_inscricao = ?";
@@ -157,7 +159,7 @@ public class inscricaoDAO {
         stmt.close();
     }
 
-    // ================= ATUALIZAR SOMENTE O STATUS =================
+    // ATUALIZAR SOMENTE O STATUS
     public void atualizarStatus(int idInscricao, String novoStatus) throws Exception {
 
         String sql = "UPDATE inscricao SET status_inscricao = ? WHERE id_inscricao = ?";
@@ -172,9 +174,9 @@ public class inscricaoDAO {
         stmt.close();
     }
 
-    // ================= PRÓXIMO DA LISTA DE ESPERA DE UM EVENTO =================
-    // Retorna a inscrição mais antiga com status 'Espera' para o evento informado
-    // (respeita a ordem de inscrição, do primeiro que entrou na fila).
+    // pega a inscrição mais antiga em "Espera" pro evento (FIFO,
+    // ORDER BY data_inscricao) — usado no cancelarInscricao pra
+    // promover o próximo da fila
     public inscricaoModel buscarProximoNaFila(int idEvento) throws Exception {
 
         String sql = "SELECT * FROM inscricao "
@@ -208,7 +210,7 @@ public class inscricaoDAO {
         return inscricao;
     }
 
-    // ================= QUANTIDADE CONFIRMADA EM UM EVENTO =================
+    // QUANTIDADE CONFIRMADA EM UM EVENTO
     public int contarConfirmados(int idEvento) throws Exception {
 
         String sql = "SELECT COUNT(*) AS total FROM inscricao "
@@ -231,7 +233,7 @@ public class inscricaoDAO {
         return total;
     }
 
-    // ================= QUANTIDADE NA LISTA DE ESPERA DE UM EVENTO =================
+    // QUANTIDADE NA LISTA DE ESPERA DE UM EVENTO
     public int contarEspera(int idEvento) throws Exception {
 
         String sql = "SELECT COUNT(*) AS total FROM inscricao "
@@ -254,7 +256,7 @@ public class inscricaoDAO {
         return total;
     }
 
-    // ================= ATUALIZAR SOMENTE O CHECK-IN =================
+    // ATUALIZAR SOMENTE O CHECK-IN
     // Usado no momento em que o usuário efetivamente realiza o check-in
     // no evento (deve respeitar a janela de tempo do evento, validada
     // na camada de controller antes de chamar este método).
@@ -276,7 +278,7 @@ public class inscricaoDAO {
         stmt.close();
     }
 
-    // ================= LISTAR INSCRIÇÕES DE UM EVENTO POR STATUS =================
+    // LISTAR INSCRIÇÕES DE UM EVENTO POR STATUS
     public List<inscricaoModel> listarPorEventoEStatus(int idEvento, String status) throws Exception {
 
         List<inscricaoModel> lista = new ArrayList<>();
@@ -311,7 +313,7 @@ public class inscricaoDAO {
         return lista;
     }
 
-    // ================= HELPER: leitura null-safe do checkin =================
+    // HELPER: leitura null-safe do checkin
     private java.time.LocalDateTime lerCheckin(ResultSet rs) throws Exception {
         Timestamp ts = rs.getTimestamp("checkin");
         return ts != null ? ts.toLocalDateTime() : null;

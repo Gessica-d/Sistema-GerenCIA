@@ -27,6 +27,8 @@ import java.sql.Connection;
 import java.time.LocalDateTime;
 import java.util.List;
 
+// cadastro, edição e exclusão de fornecedores. Também dá pra cadastrar
+// um fornecedor e já vincular o contrato a um evento na mesma submissão
 @WebServlet("/fornecedorController")
 @MultipartConfig(
     maxFileSize = 10 * 1024 * 1024,       // 10MB por arquivo
@@ -39,7 +41,13 @@ public class fornecedorController extends HttpServlet {
     private fornecedorDAO fornecedorDAO;
     private contratoDAO contratoDAO;
 
-    // ================= INIT =================
+    // métodos estáticos pra JSP consultar sem tocar em DAO diretamente
+
+    public static List<fornecedorModel> listarTodos() throws Exception {
+        return new fornecedorDAO(Conexao.getConnection()).listarFornecedores();
+    }
+
+    // INIT
     @Override
     public void init() {
 
@@ -56,11 +64,9 @@ public class fornecedorController extends HttpServlet {
         }
     }
 
-    // =====================================================
     // SALVAR ARQUIVO DO CONTRATO (upload), usado quando o
     // fornecedor já é vinculado a um evento no próprio
     // cadastro do fornecedor.
-    // =====================================================
     private String salvarArquivoContrato(HttpServletRequest request, String nomeCampo) throws Exception {
 
         Part filePart = request.getPart(nomeCampo);
@@ -107,7 +113,7 @@ public class fornecedorController extends HttpServlet {
         return "uploads/contratos/" + nomeArmazenado;
     }
 
-    // ================= GET =================
+    // GET
     @Override
     protected void doGet(HttpServletRequest request,
                          HttpServletResponse response)
@@ -137,7 +143,7 @@ public class fornecedorController extends HttpServlet {
         }
     }
 
-    // ================= POST =================
+    // POST
     @Override
     protected void doPost(HttpServletRequest request,
                           HttpServletResponse response)
@@ -178,7 +184,7 @@ public class fornecedorController extends HttpServlet {
         }
     }
 
-    // ================= CADASTRAR =================
+    // CADASTRAR
     private void cadastrarFornecedor(HttpServletRequest request,
                                      HttpServletResponse response)
             throws Exception {
@@ -198,7 +204,7 @@ public class fornecedorController extends HttpServlet {
         String email =
             request.getParameter("email");
 
-        // ================= VALIDAÇÕES =================
+        // VALIDAÇÕES
 
         if (nome == null || nome.isBlank()) {
             throw new Exception(
@@ -262,11 +268,9 @@ public class fornecedorController extends HttpServlet {
 
         int idFornecedorGerado = fornecedorDAO.adicionarFornecedor(fornecedor);
 
-        // =================================================
         // VÍNCULO OPCIONAL DE CONTRATO A UM EVENTO EXISTENTE
         // Campos "*_vinculo" só chegam preenchidos se o organizador
         // marcou "Já vincular um contrato a um evento existente".
-        // =================================================
         String idEventoVinculo = request.getParameter("id_evento_vinculo");
 
         if (idEventoVinculo != null && !idEventoVinculo.isBlank()) {
@@ -311,13 +315,9 @@ public class fornecedorController extends HttpServlet {
         );
     }
 
-    // =====================================================
-    // Permite que quem chamou este controller (ex.: o formulário
-    // inline de "Cadastrar fornecedor" dentro da tela de criar
-    // evento) peça para voltar para uma tela específica em vez do
-    // dashboard padrão. Só aceitamos caminhos internos conhecidos,
-    // para não abrir um redirect arbitrário.
-    // =====================================================
+    // permite voltar pra uma tela específica em vez do dashboard padrão
+    // (usado pelo cadastro inline dentro de criar evento) — só aceita
+    // caminhos internos conhecidos
     private String destinoAposCadastro(HttpServletRequest request) {
 
         String voltarPara = request.getParameter("voltarPara");
@@ -329,7 +329,7 @@ public class fornecedorController extends HttpServlet {
         return "/pages/homeOrganizador.jsp";
     }
 
-    // ================= ATUALIZAR =================
+    // ATUALIZAR
     private void atualizarFornecedor(HttpServletRequest request,
                                      HttpServletResponse response)
             throws Exception {
@@ -361,7 +361,7 @@ public class fornecedorController extends HttpServlet {
         String email =
             request.getParameter("email");
 
-        // ================= VALIDAÇÕES =================
+        // VALIDAÇÕES
 
         if (nome == null || nome.isBlank()) {
             throw new Exception(
@@ -411,7 +411,7 @@ public class fornecedorController extends HttpServlet {
         );
     }
 
-    // ================= BUSCAR POR ID =================
+    // BUSCAR POR ID
     private void buscarFornecedor(HttpServletRequest request,
                                   HttpServletResponse response)
             throws Exception {
@@ -444,7 +444,7 @@ public class fornecedorController extends HttpServlet {
         dispatcher.forward(request, response);
     }
 
-    // ================= EXCLUIR =================
+    // EXCLUIR
     private void excluirFornecedor(HttpServletRequest request,
                                    HttpServletResponse response)
             throws Exception {
@@ -469,7 +469,7 @@ public class fornecedorController extends HttpServlet {
         );
     }
 
-    // ================= LISTAR =================
+    // LISTAR
     private void listarFornecedores(HttpServletRequest request,
                                     HttpServletResponse response)
             throws Exception {

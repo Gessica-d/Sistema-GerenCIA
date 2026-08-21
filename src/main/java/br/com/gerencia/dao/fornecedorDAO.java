@@ -8,6 +8,7 @@ import java.util.List;
 
 import br.com.gerencia.model.fornecedorModel;
 
+// acesso à tabela fornecedor
 public class fornecedorDAO {
 
     private Connection conexao;
@@ -17,7 +18,7 @@ public class fornecedorDAO {
         this.conexao = conexao;
     }
 
-    // ================= ADICIONAR FORNECEDOR =================
+    // ADICIONAR FORNECEDOR
     // Retorna o id_fornecedor gerado (necessário para já vincular um
     // contrato a um evento no mesmo cadastro do fornecedor).
     public int adicionarFornecedor(fornecedorModel fornecedor) throws Exception {
@@ -50,7 +51,7 @@ public class fornecedorDAO {
         return idGerado;
     }
 
-    // ================= LISTAR FORNECEDORES =================
+    // LISTAR FORNECEDORES
     public List<fornecedorModel> listarFornecedores() throws Exception {
 
         List<fornecedorModel> fornecedores = new ArrayList<>();
@@ -80,7 +81,7 @@ public class fornecedorDAO {
         return fornecedores;
     }
 
-    // ================= BUSCAR FORNECEDOR POR ID =================
+    // BUSCAR FORNECEDOR POR ID
     public fornecedorModel buscarPorId(int idFornecedor) throws Exception {
 
         String sql = "SELECT * FROM fornecedor WHERE id_fornecedor = ?";
@@ -111,7 +112,7 @@ public class fornecedorDAO {
         return fornecedor;
     }
 
-    // ================= BUSCAR FORNECEDOR POR CNPJ (checagem de duplicidade) =================
+    // BUSCAR FORNECEDOR POR CNPJ (checagem de duplicidade)
     public fornecedorModel buscarPorCNPJ(String cnpj) throws Exception {
 
         String sql = "SELECT * FROM fornecedor WHERE CNPJ_fornecedor = ?";
@@ -142,7 +143,7 @@ public class fornecedorDAO {
         return fornecedor;
     }
 
-    // ================= ATUALIZAR FORNECEDOR =================
+    // ATUALIZAR FORNECEDOR
     public void atualizarFornecedor(fornecedorModel fornecedor) throws Exception {
 
         String sql = "UPDATE fornecedor SET "
@@ -167,7 +168,7 @@ public class fornecedorDAO {
         stmt.close();
     }
 
-    // ================= EXCLUIR FORNECEDOR =================
+    // EXCLUIR FORNECEDOR
     public void excluirFornecedor(int idFornecedor) throws Exception {
 
         String sql = "DELETE FROM fornecedor WHERE id_fornecedor = ?";

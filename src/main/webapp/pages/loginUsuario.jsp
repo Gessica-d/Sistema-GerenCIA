@@ -315,7 +315,7 @@
 
 <div class="auth-split">
 
-    <!-- ================= LADO ESQUERDO ================= -->
+    <!-- LADO ESQUERDO -->
     <div class="auth-side">
 
         <a href="${pageContext.request.contextPath}/index.html" class="auth-brand">
@@ -351,7 +351,7 @@
 
     </div>
 
-    <!-- ================= LADO DIREITO (FORM) ================= -->
+    <!-- LADO DIREITO (FORM) -->
     <div class="auth-form-wrap">
 
         <div class="auth-form">
@@ -422,10 +422,8 @@
 
 <script>
 
-    // =========================================================
     // "LEMBRAR-ME" — guarda o e-mail em cookie (30 dias) e
     // pré-preenche no próximo acesso. Não guarda senha.
-    // =========================================================
 
     function salvarLembrarMe() {
         const email = document.getElementById('email_usuario').value;

@@ -18,12 +18,24 @@ import java.sql.Connection;
 import java.time.LocalDateTime;
 import java.util.List;
 
+// lista, marca como lida e exclui notificações. Quem cria é o
+// inscricaoController (na promoção da lista de espera)
 @WebServlet("/notificacaoController")
 public class notificacaoController extends HttpServlet {
 
     private static final long serialVersionUID = 1L;
 
     private notificacaoDAO notificacaoDAO;
+
+    // métodos estáticos pra JSP consultar sem tocar em DAO diretamente
+
+    public static List<notificacaoModel> listarPorUsuario(int idUsuario) throws Exception {
+        return new notificacaoDAO(Conexao.getConnection()).listarPorUsuario(idUsuario);
+    }
+
+    public static int contarNaoLidas(int idUsuario) throws Exception {
+        return new notificacaoDAO(Conexao.getConnection()).contarNaoLidas(idUsuario);
+    }
 
   
     @Override

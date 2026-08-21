@@ -16,12 +16,20 @@ import java.sql.Connection;
 import java.time.LocalDateTime;
 import java.util.List;
 
+// favoritar/desfavoritar eventos (usuário + evento é chave composta
+// na tabela, então não duplica)
 @WebServlet("/favoritoController")
 public class favoritoController extends HttpServlet {
 
     private static final long serialVersionUID = 1L;
 
     private favoritoDAO favoritoDAO;
+
+    // métodos estáticos pra JSP consultar sem tocar em DAO diretamente
+
+    public static List<favoritoModel> listarTodos() throws Exception {
+        return new favoritoDAO(Conexao.getConnection()).listarFavoritos();
+    }
 
  
     @Override
@@ -122,7 +130,7 @@ public class favoritoController extends HttpServlet {
         String dataFavoritoParametro =
             request.getParameter("data_favorito");
 
-        // ================= VALIDAÇÕES =================
+        // VALIDAÇÕES
 
         if (idUsuarioParametro == null
                 || idUsuarioParametro.isBlank()) {
@@ -140,7 +148,7 @@ public class favoritoController extends HttpServlet {
             );
         }
 
-        // ================= CONVERSÕES =================
+        // CONVERSÕES
 
         int idUsuario =
             Integer.parseInt(idUsuarioParametro);
@@ -168,7 +176,7 @@ public class favoritoController extends HttpServlet {
             dataFavorito = LocalDateTime.parse(dataLimpa);
         }
 
-        // ================= VERIFICAR DUPLICIDADE =================
+        // VERIFICAR DUPLICIDADE
 
         favoritoModel favoritoExistente =
             favoritoDAO.buscarFavorito(
@@ -183,7 +191,7 @@ public class favoritoController extends HttpServlet {
             );
         }
 
-        // ================= MODEL =================
+        // MODEL
 
         favoritoModel favorito =
             new favoritoModel(
@@ -192,7 +200,7 @@ public class favoritoController extends HttpServlet {
                 dataFavorito
             );
 
-        // ================= DAO =================
+        // DAO
 
         favoritoDAO.adicionarFavorito(favorito);
 
@@ -202,7 +210,7 @@ public class favoritoController extends HttpServlet {
         );
     }
 
-    // ================= BUSCAR =================
+    // BUSCAR
     private void buscarFavorito(HttpServletRequest request,
                                 HttpServletResponse response)
             throws Exception {
@@ -254,7 +262,7 @@ public class favoritoController extends HttpServlet {
         dispatcher.forward(request, response);
     }
 
-    // ================= EXCLUIR =================
+    // EXCLUIR
     private void excluirFavorito(HttpServletRequest request,
                                  HttpServletResponse response)
             throws Exception {
@@ -298,7 +306,7 @@ public class favoritoController extends HttpServlet {
         );
     }
 
-    // ================= LISTAR =================
+    // LISTAR
     private void listarFavoritos(HttpServletRequest request,
                                  HttpServletResponse response)
             throws Exception {

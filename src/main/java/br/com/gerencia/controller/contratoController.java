@@ -24,6 +24,9 @@ import java.sql.Connection;
 import java.time.LocalDateTime;
 import java.util.List;
 
+// cuida dos contratos entre organizador e fornecedor pra um evento —
+// inclui o upload do arquivo do contrato (salvo em /uploads/contratos,
+// só o caminho fica gravado no banco)
 @WebServlet("/contratoController")
 @MultipartConfig(
     maxFileSize = 10 * 1024 * 1024,       // 10MB por arquivo
@@ -35,7 +38,13 @@ public class contratoController extends HttpServlet {
 
     private contratoDAO contratoDAO;
 
-    // ================= INIT =================
+    // métodos estáticos pra JSP consultar sem tocar em DAO diretamente
+
+    public static List<contratoModel> listarTodos() throws Exception {
+        return new contratoDAO(Conexao.getConnection()).listarContratos();
+    }
+
+    // INIT
     @Override
     public void init() {
 
@@ -53,11 +62,9 @@ public class contratoController extends HttpServlet {
         }
     }
 
-    // =====================================================
-    // SALVAR ARQUIVO DO CONTRATO (upload)
-    // Retorna o caminho relativo salvo (ex: "uploads/contratos/arquivo.pdf")
-    // ou null se nenhum arquivo novo foi enviado.
-    // =====================================================
+    // salva o arquivo do contrato em uploads/contratos e devolve o
+    // caminho relativo (só o caminho vai pro banco, não o arquivo).
+    // requer @MultipartConfig na classe e enctype multipart no form
     private String salvarArquivoContrato(HttpServletRequest request) throws Exception {
 
         Part filePart = request.getPart("arquivo_contrato");
@@ -114,7 +121,7 @@ public class contratoController extends HttpServlet {
         return null;
     }
 
-    // ================= GET =================
+    // GET
     @Override
     protected void doGet(HttpServletRequest request,
                          HttpServletResponse response)
@@ -144,7 +151,7 @@ public class contratoController extends HttpServlet {
         }
     }
 
-    // ================= POST =================
+    // POST
     @Override
     protected void doPost(HttpServletRequest request,
                           HttpServletResponse response)
@@ -185,7 +192,7 @@ public class contratoController extends HttpServlet {
         }
     }
 
-    // ================= CADASTRAR =================
+    // CADASTRAR
     private void cadastrarContrato(HttpServletRequest request,
                                    HttpServletResponse response)
             throws Exception {
@@ -216,7 +223,7 @@ public class contratoController extends HttpServlet {
 
         String anexoContrato = salvarArquivoContrato(request);
 
-        // ================= VALIDAÇÕES =================
+        // VALIDAÇÕES
 
         if (idFornecedorParametro == null
                 || idFornecedorParametro.isBlank()) {
@@ -274,7 +281,7 @@ public class contratoController extends HttpServlet {
             );
         }
 
-        // ================= CONVERSÕES =================
+        // CONVERSÕES
 
         int idFornecedor =
             Integer.parseInt(idFornecedorParametro);
@@ -291,7 +298,7 @@ public class contratoController extends HttpServlet {
         double valorTotal =
             Double.parseDouble(valorTotalParametro);
 
-        // ================= MODEL =================
+        // MODEL
 
         contratoModel contrato =
             new contratoModel(
@@ -306,7 +313,7 @@ public class contratoController extends HttpServlet {
                 anexoContrato
             );
 
-        // ================= DAO =================
+        // DAO
 
         contratoDAO.adicionarContrato(contrato);
 
@@ -316,7 +323,7 @@ public class contratoController extends HttpServlet {
         );
     }
 
-    // ================= ATUALIZAR =================
+    // ATUALIZAR
     private void atualizarContrato(HttpServletRequest request,
                                    HttpServletResponse response)
             throws Exception {
@@ -355,7 +362,7 @@ public class contratoController extends HttpServlet {
 
         String anexoContrato = (anexoNovo != null) ? anexoNovo : anexoAtual;
 
-        // ================= VALIDAÇÕES =================
+        // VALIDAÇÕES
 
         if (idContratoParametro == null
                 || idContratoParametro.isBlank()) {
@@ -421,7 +428,7 @@ public class contratoController extends HttpServlet {
             );
         }
 
-        // ================= CONVERSÕES =================
+        // CONVERSÕES
 
         int idContrato =
             Integer.parseInt(idContratoParametro);
@@ -441,7 +448,7 @@ public class contratoController extends HttpServlet {
         double valorTotal =
             Double.parseDouble(valorTotalParametro);
 
-        // ================= MODEL =================
+        // MODEL
 
         contratoModel contrato =
             new contratoModel(
@@ -457,7 +464,7 @@ public class contratoController extends HttpServlet {
                 anexoContrato
             );
 
-        // ================= DAO =================
+        // DAO
 
         contratoDAO.atualizarContrato(contrato);
 
@@ -467,7 +474,7 @@ public class contratoController extends HttpServlet {
         );
     }
 
-    // ================= BUSCAR POR ID =================
+    // BUSCAR POR ID
     private void buscarContrato(HttpServletRequest request,
                                 HttpServletResponse response)
             throws Exception {
@@ -508,7 +515,7 @@ public class contratoController extends HttpServlet {
         dispatcher.forward(request, response);
     }
 
-    // ================= EXCLUIR =================
+    // EXCLUIR
     private void excluirContrato(HttpServletRequest request,
                                  HttpServletResponse response)
             throws Exception {
@@ -534,7 +541,7 @@ public class contratoController extends HttpServlet {
         );
     }
 
-    // ================= LISTAR =================
+    // LISTAR
     private void listarContratos(HttpServletRequest request,
                                  HttpServletResponse response)
             throws Exception {

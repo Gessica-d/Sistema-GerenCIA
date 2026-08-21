@@ -1,7 +1,19 @@
 package br.com.gerencia.controller;
 
 import br.com.gerencia.dao.usuarioDAO;
+import br.com.gerencia.dao.eventoDAO;
+import br.com.gerencia.dao.fornecedorDAO;
+import br.com.gerencia.dao.contratoDAO;
+import br.com.gerencia.dao.inscricaoDAO;
+import br.com.gerencia.dao.notificacaoDAO;
+import br.com.gerencia.dao.favoritoDAO;
 import br.com.gerencia.model.usuarioModel;
+import br.com.gerencia.model.eventoModel;
+import br.com.gerencia.model.fornecedorModel;
+import br.com.gerencia.model.contratoModel;
+import br.com.gerencia.model.inscricaoModel;
+import br.com.gerencia.model.notificacaoModel;
+import br.com.gerencia.model.favoritoModel;
 import br.com.gerencia.utils.Conexao;
 
 import javax.servlet.RequestDispatcher;
@@ -14,14 +26,34 @@ import javax.servlet.http.HttpSession;
 
 import java.io.IOException;
 import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeSet;
 
+// cadastro, login/logout, senha e perfil do usuário. É quem decide
+// pra qual painel redirecionar depois do login, com base no tipo de conta
 @WebServlet("/usuarioController")
 public class usuarioController extends HttpServlet {
 
     private static final long serialVersionUID = 1L;
 
     private usuarioDAO usuarioDAO;
+
+    // métodos estáticos pra JSP consultar sem tocar em DAO diretamente
+    public static List<usuarioModel> listarTodos() throws Exception {
+        return new usuarioDAO(Conexao.getConnection()).listarUsuarios();
+    }
+
+    public static usuarioModel buscarPorId(int idUsuario) throws Exception {
+        return new usuarioDAO(Conexao.getConnection()).buscarPorId(idUsuario);
+    }
 
     @Override
     public void init() {
@@ -165,9 +197,7 @@ public class usuarioController extends HttpServlet {
         String telefone =
             request.getParameter("telefone");
 
-        // =================================================
         // VALIDAÇÕES
-        // =================================================
 
         if (cpf == null || cpf.isBlank()) {
             throw new Exception("CPF obrigatório");

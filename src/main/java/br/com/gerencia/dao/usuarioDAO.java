@@ -8,6 +8,7 @@ import java.util.List;
 
 import br.com.gerencia.model.usuarioModel;
 
+// acesso à tabela usuario (cadastro, login, senha, CPF/e-mail)
 public class usuarioDAO {
 
 

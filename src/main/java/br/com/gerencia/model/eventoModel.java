@@ -2,6 +2,7 @@ package br.com.gerencia.model;
 
 import java.time.LocalDateTime;
 
+// representa uma linha da tabela evento
 public class eventoModel {
 
     private int id_evento;

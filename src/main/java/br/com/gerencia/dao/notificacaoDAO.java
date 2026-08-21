@@ -8,6 +8,7 @@ import java.util.List;
 
 import br.com.gerencia.model.notificacaoModel;
 
+// acesso à tabela notificacao
 public class notificacaoDAO {
 
     private Connection conexao;
@@ -17,7 +18,7 @@ public class notificacaoDAO {
         this.conexao = conexao;
     }
 
-    // ================= ADICIONAR NOTIFICAÇÃO =================
+    // ADICIONAR NOTIFICAÇÃO
     public void adicionarNotificacao(notificacaoModel notificacao) throws Exception {
 
         String sql = "INSERT INTO notificacao "
@@ -37,7 +38,7 @@ public class notificacaoDAO {
         stmt.close();
     }
 
-    // ================= LISTAR NOTIFICAÇÕES =================
+    // LISTAR NOTIFICAÇÕES
     public List<notificacaoModel> listarNotificacoes() throws Exception {
 
         List<notificacaoModel> notificacoes = new ArrayList<>();
@@ -57,7 +58,7 @@ public class notificacaoDAO {
         return notificacoes;
     }
 
-    // ================= LISTAR NOTIFICAÇÕES DE UM USUÁRIO =================
+    // LISTAR NOTIFICAÇÕES DE UM USUÁRIO
     public List<notificacaoModel> listarPorUsuario(int idUsuario) throws Exception {
 
         List<notificacaoModel> notificacoes = new ArrayList<>();
@@ -80,7 +81,7 @@ public class notificacaoDAO {
         return notificacoes;
     }
 
-    // ================= CONTAR NÃO LIDAS =================
+    // CONTAR NÃO LIDAS
     public int contarNaoLidas(int idUsuario) throws Exception {
 
         String sql = "SELECT COUNT(*) AS total FROM notificacao "
@@ -103,7 +104,7 @@ public class notificacaoDAO {
         return total;
     }
 
-    // ================= MARCAR TODAS COMO LIDAS (DE UM USUÁRIO) =================
+    // MARCAR TODAS COMO LIDAS (DE UM USUÁRIO)
     public void marcarTodasComoLidas(int idUsuario) throws Exception {
 
         String sql = "UPDATE notificacao SET status_notificacao = 'lida' "
@@ -117,7 +118,7 @@ public class notificacaoDAO {
         stmt.close();
     }
 
-    // ================= BUSCAR NOTIFICAÇÃO POR ID =================
+    // BUSCAR NOTIFICAÇÃO POR ID
     public notificacaoModel buscarPorId(int idNotificacao) throws Exception {
 
         String sql = "SELECT * FROM notificacao WHERE id_notificacao = ?";
@@ -140,7 +141,7 @@ public class notificacaoDAO {
         return notificacao;
     }
 
-    // ================= ATUALIZAR NOTIFICAÇÃO =================
+    // ATUALIZAR NOTIFICAÇÃO
     public void atualizarNotificacao(notificacaoModel notificacao) throws Exception {
 
         String sql = "UPDATE notificacao SET "
@@ -165,7 +166,7 @@ public class notificacaoDAO {
         stmt.close();
     }
 
-    // ================= EXCLUIR NOTIFICAÇÃO =================
+    // EXCLUIR NOTIFICAÇÃO
     public void excluirNotificacao(int idNotificacao) throws Exception {
 
         String sql = "DELETE FROM notificacao WHERE id_notificacao = ?";
@@ -179,7 +180,7 @@ public class notificacaoDAO {
         stmt.close();
     }
 
-    // ================= HELPER =================
+    // HELPER
     private notificacaoModel montar(ResultSet rs) throws Exception {
 
         return new notificacaoModel(

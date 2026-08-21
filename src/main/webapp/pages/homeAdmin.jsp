@@ -1,14 +1,13 @@
 <%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
 <%@ page import="br.com.gerencia.model.usuarioModel"%>
 <%@ page import="br.com.gerencia.model.eventoModel"%>
-<%@ page import="br.com.gerencia.dao.usuarioDAO"%>
-<%@ page import="br.com.gerencia.dao.eventoDAO"%>
-<%@ page import="br.com.gerencia.dao.inscricaoDAO"%>
-<%@ page import="br.com.gerencia.utils.Conexao"%>
+<%@ page import="br.com.gerencia.controller.usuarioController"%>
+<%@ page import="br.com.gerencia.controller.eventoController"%>
+<%@ page import="br.com.gerencia.controller.inscricaoController"%>
 <%@ page import="java.util.List"%>
 <%@ page import="java.util.HashMap"%>
 <%
-    // ================= GUARDA DE SESSÃO =================
+    // GUARDA DE SESSÃO
     usuarioModel usuarioLogado = (usuarioModel) session.getAttribute("usuarioLogado");
 
     if (usuarioLogado == null) {
@@ -31,46 +30,21 @@
             : ("" + partes[0].charAt(0)).toUpperCase();
     }
 
-    // ================= LISTA REAL DE USUÁRIOS =================
+    // ================= LISTA REAL DE USUÁRIOS (via método estático
+    // do usuarioController, nunca instanciando DAO diretamente aqui) =================
     List<usuarioModel> listaUsuarios;
     try {
-        listaUsuarios = new usuarioDAO(Conexao.getConnection()).listarUsuarios();
+        listaUsuarios = usuarioController.listarTodos();
     } catch (Exception e) {
         listaUsuarios = new java.util.ArrayList<usuarioModel>();
     }
 
-    // ================= CATEGORIAS DE EVENTO (lidas do ENUM da coluna no banco) =================
-    // Sempre que a coluna gerencia.evento.categoria_evento for alterada (ALTER TABLE ... MODIFY COLUMN),
-    // esta lista é atualizada automaticamente — nenhuma edição de código é necessária.
-    List<String> categoriasEvento = new java.util.ArrayList<String>();
-    try {
-        java.sql.Statement stCategorias = Conexao.getConnection().createStatement();
-        java.sql.ResultSet rsCategorias = stCategorias.executeQuery(
-            "SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS " +
-            "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'evento' AND COLUMN_NAME = 'categoria_evento'"
-        );
-        if (rsCategorias.next()) {
-            // formato retornado pelo MySQL: enum('sociais','corporativos','tecCientifico',...)
-            String tipoColuna = rsCategorias.getString(1);
-            String valores = tipoColuna.substring(tipoColuna.indexOf('(') + 1, tipoColuna.lastIndexOf(')'));
-            for (String v : valores.split(",")) {
-                categoriasEvento.add(v.trim().replaceAll("^'|'$", ""));
-            }
-        }
-        rsCategorias.close();
-        stCategorias.close();
-    } catch (Exception ex) {
-        // fallback caso a consulta ao INFORMATION_SCHEMA falhe por algum motivo
-        categoriasEvento.add("tecCientifico");
-        categoriasEvento.add("corporativos");
-        categoriasEvento.add("sociais");
-    }
+    // ================= CATEGORIAS DE EVENTO (via método estático do
+    // eventoController, que lê o ENUM da coluna no banco) =================
+    List<String> categoriasEvento = eventoController.listarCategoriasDisponiveis();
 
-    // ================= LISTA REAL DE EVENTOS (todos, de todos os organizadores) =================
-    eventoDAO eventoDAOJsp = new eventoDAO(Conexao.getConnection());
-    inscricaoDAO inscricaoDAOAdminJsp = new inscricaoDAO(Conexao.getConnection());
-
-    List<eventoModel> listaEventosAdmin = eventoDAOJsp.listarEventos();
+    // LISTA REAL DE EVENTOS (todos, de todos os organizadores)
+    List<eventoModel> listaEventosAdmin = eventoController.listarTodos();
 
     HashMap<Integer, String> nomeOrganizadorPorId = new HashMap<Integer, String>();
     for (usuarioModel u : listaUsuarios) {
@@ -103,7 +77,7 @@
     HashMap<Integer, Integer> checkinsPorEventoAdmin = new HashMap<Integer, Integer>();
     int totalInscricoesPlataforma = 0;
 
-    for (br.com.gerencia.model.inscricaoModel insc : inscricaoDAOAdminJsp.listarInscricoes()) {
+    for (br.com.gerencia.model.inscricaoModel insc : inscricaoController.listarTodos()) {
 
         if ("Confirmada".equals(insc.getStatus_inscricao())) {
 
@@ -132,13 +106,13 @@
     // paleta cíclica: cada categoria (na ordem do ENUM) recebe uma cor fixa
     String[] paletaCoresCategoria = {"#2563EB", "#10B981", "#7C3AED", "#F59E0B", "#EF4444", "#0EA5E9", "#EC4899", "#84CC16"};
 
-    // ================= MENSAGEM FLASH (ex: senha redefinida) =================
+    // MENSAGEM FLASH (ex: senha redefinida)
     String flashMsg = (String) session.getAttribute("flashMsg");
     if (flashMsg != null) {
         session.removeAttribute("flashMsg");
     }
 
-    // ================= HELPER: rótulo de exibição do tipo_usuario =================
+    // HELPER: rótulo de exibição do tipo_usuario
 %>
 <%!
     private String js(String s) {
@@ -882,7 +856,7 @@
 
 <div class="app">
 
-    <!-- ================= SIDEBAR ================= -->
+    <!-- SIDEBAR -->
     <aside class="sidebar" id="sidebarEl">
 
         <div class="sidebar-logo">
@@ -924,7 +898,7 @@
 
     <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
 
-    <!-- ================= ÁREA PRINCIPAL ================= -->
+    <!-- ÁREA PRINCIPAL -->
     <div class="main-col">
 
         <header class="topbar">
@@ -942,9 +916,7 @@
 
         <main class="content">
 
-            <!-- ============================================================
-                 VIEW: DASHBOARD
-            ============================================================ -->
+            <!-- VIEW: DASHBOARD -->
             <section class="view-section active" id="view-dashboard">
 
                 <div class="view-header">
@@ -1109,9 +1081,7 @@
 
             </section>
 
-            <!-- ============================================================
-                 VIEW: EVENTOS (TODOS)
-            ============================================================ -->
+            <!-- VIEW: EVENTOS (TODOS) -->
             <section class="view-section" id="view-eventos">
 
                 <div class="view-header">
@@ -1190,9 +1160,7 @@
 
             </section>
 
-            <!-- ============================================================
-                 VIEW: DETALHES DO EVENTO (ADMIN)
-            ============================================================ -->
+            <!-- VIEW: DETALHES DO EVENTO (ADMIN) -->
             <section class="view-section" id="view-detalheEventoAdmin">
 
                 <div class="back-link" onclick="mudarViewById('eventos')">← Voltar</div>
@@ -1223,9 +1191,7 @@
 
             </section>
 
-            <!-- ============================================================
-                 VIEW: USUÁRIOS
-            ============================================================ -->
+            <!-- VIEW: USUÁRIOS -->
             <section class="view-section" id="view-usuarios">
 
                 <div class="view-header">
@@ -1301,9 +1267,7 @@
 
             </section>
 
-            <!-- ============================================================
-                 VIEW: MEU PERFIL
-            ============================================================ -->
+            <!-- VIEW: MEU PERFIL -->
             <section class="view-section" id="view-perfil">
 
                 <div class="view-header">
@@ -1369,9 +1333,7 @@
 
 <script>
 
-    // =========================================================
     // MODO ESCURO
-    // =========================================================
 
     function alternarTema() {
         const escuro = document.getElementById('themeToggle').checked;
@@ -1382,9 +1344,7 @@
     document.getElementById('themeToggle').checked =
         document.documentElement.classList.contains('dark-mode');
 
-    // =========================================================
     // NAVEGAÇÃO ENTRE SUB-VIEWS
-    // =========================================================
 
     function mudarView(viewId, botao) {
         document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
@@ -1415,9 +1375,7 @@
         if (view) mudarViewById(view);
     })();
 
-    // =========================================================
     // EVENTOS (ADMIN) — filtro por busca/status/categoria
-    // =========================================================
 
     function filtrarEventosAdmin() {
         const busca = document.getElementById('buscaEventoAdmin').value.toLowerCase();
@@ -1434,9 +1392,7 @@
         });
     }
 
-    // =========================================================
     // DETALHES DO EVENTO (ADMIN) — dados reais + exclusão
-    // =========================================================
 
     const eventosAdminData = [
         <%
@@ -1531,9 +1487,7 @@
         doc.save('eventos-plataforma.pdf');
     }
 
-    // =========================================================
     // USUÁRIOS (dados reais, vindos do usuarioDAO)
-    // =========================================================
 
     const usuarios = [
         <%
@@ -1620,9 +1574,7 @@
         renderizarUsuarios();
     });
 
-    // =========================================================
     // DETALHES DO USUÁRIO (modal)
-    // =========================================================
 
     function abrirDetalheUsuario(id) {
         const u = usuarios.find(x => x.id === id);
@@ -1648,7 +1600,7 @@
 
 </script>
 
-<!-- ================= MODAL: DETALHES DO USUÁRIO ================= -->
+<!-- MODAL: DETALHES DO USUÁRIO -->
 <div class="modal-overlay" id="modalDetalheUsuario">
     <div class="modal-box">
         <div class="modal-header">

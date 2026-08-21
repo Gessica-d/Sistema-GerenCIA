@@ -5,28 +5,24 @@
 <%@ page import="br.com.gerencia.model.contratoModel"%>
 <%@ page import="br.com.gerencia.model.inscricaoModel"%>
 <%@ page import="br.com.gerencia.model.notificacaoModel"%>
-<%@ page import="br.com.gerencia.dao.eventoDAO"%>
-<%@ page import="br.com.gerencia.dao.fornecedorDAO"%>
-<%@ page import="br.com.gerencia.dao.contratoDAO"%>
-<%@ page import="br.com.gerencia.dao.inscricaoDAO"%>
-<%@ page import="br.com.gerencia.dao.notificacaoDAO"%>
-<%@ page import="br.com.gerencia.dao.usuarioDAO"%>
-<%@ page import="br.com.gerencia.utils.Conexao"%>
+<%@ page import="br.com.gerencia.controller.eventoController"%>
+<%@ page import="br.com.gerencia.controller.fornecedorController"%>
+<%@ page import="br.com.gerencia.controller.contratoController"%>
+<%@ page import="br.com.gerencia.controller.inscricaoController"%>
+<%@ page import="br.com.gerencia.controller.notificacaoController"%>
+<%@ page import="br.com.gerencia.controller.usuarioController"%>
 <%@ page import="java.util.List"%>
 <%@ page import="java.util.ArrayList"%>
 <%@ page import="java.util.HashMap"%>
 <%@ page import="java.time.format.DateTimeFormatter"%>
 <%
-    // ================= SEM CACHE =================
-    // Evita que o navegador reaproveise uma cópia antiga desta página
-    // (ex.: logo após criar um evento, o redirect volta para esta mesma
-    // URL — sem isso, alguns navegadores reexibem a versão em cache,
-    // sem o evento novo, até o usuário fazer login novamente / dar reload).
+    // sem isso o navegador às vezes reexibe a versão em cache depois
+    // de criar um evento, sem mostrar o que acabou de ser salvo
     response.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
     response.setHeader("Pragma", "no-cache");
     response.setDateHeader("Expires", 0);
 
-    // ================= GUARDA DE SESSÃO =================
+    // GUARDA DE SESSÃO
     usuarioModel usuarioLogado = (usuarioModel) session.getAttribute("usuarioLogado");
 
     if (usuarioLogado == null) {
@@ -49,28 +45,22 @@
             : ("" + partes[0].charAt(0)).toUpperCase();
     }
 
-    // ================= DADOS REAIS DO BANCO =================
-    eventoDAO eventoDAOJsp = new eventoDAO(Conexao.getConnection());
-    fornecedorDAO fornecedorDAOJsp = new fornecedorDAO(Conexao.getConnection());
-    contratoDAO contratoDAOJsp = new contratoDAO(Conexao.getConnection());
-    inscricaoDAO inscricaoDAOJsp = new inscricaoDAO(Conexao.getConnection());
-    notificacaoDAO notificacaoDAOJsp = new notificacaoDAO(Conexao.getConnection());
-    usuarioDAO usuarioDAOJsp = new usuarioDAO(Conexao.getConnection());
-
+    // ================= DADOS REAIS (via métodos estáticos dos controllers,
+    // nunca instanciando DAO diretamente aqui na tela) =================
     List<eventoModel> meusEventos = new ArrayList<eventoModel>();
-    for (eventoModel ev : eventoDAOJsp.listarEventos()) {
+    for (eventoModel ev : eventoController.listarTodos()) {
         if (ev.getId_organizador() == usuarioLogado.getId_usuario()) {
             meusEventos.add(ev);
         }
     }
 
-    List<fornecedorModel> todosFornecedores = fornecedorDAOJsp.listarFornecedores();
-    List<contratoModel> todosContratos = contratoDAOJsp.listarContratos();
+    List<fornecedorModel> todosFornecedores = fornecedorController.listarTodos();
+    List<contratoModel> todosContratos = contratoController.listarTodos();
 
     List<notificacaoModel> minhasNotificacoes =
-        notificacaoDAOJsp.listarPorUsuario(usuarioLogado.getId_usuario());
+        notificacaoController.listarPorUsuario(usuarioLogado.getId_usuario());
 
-    int notifNaoLidas = notificacaoDAOJsp.contarNaoLidas(usuarioLogado.getId_usuario());
+    int notifNaoLidas = notificacaoController.contarNaoLidas(usuarioLogado.getId_usuario());
 
     DateTimeFormatter fmtData = DateTimeFormatter.ofPattern("dd/MM/yyyy");
     DateTimeFormatter fmtHora = DateTimeFormatter.ofPattern("HH:mm");
@@ -92,7 +82,7 @@
     int totalInscritosSoma = 0;
     int totalNaEsperaSoma = 0;
 
-    // ================= MENSAGEM FLASH (ex: erro de CNPJ duplicado) =================
+    // MENSAGEM FLASH (ex: erro de CNPJ duplicado)
     String flashMsgOrg = (String) session.getAttribute("flashMsg");
     if (flashMsgOrg != null) {
         session.removeAttribute("flashMsg");
@@ -140,7 +130,7 @@
     }
 %>
 <%
-    // ================= AGREGADOS POR EVENTO (inscritos/espera/percentual/check-in) =================
+    // AGREGADOS POR EVENTO (inscritos/espera/percentual/check-in)
     HashMap<Integer, Integer> inscritosPorEvento = new HashMap<Integer, Integer>();
     HashMap<Integer, Integer> esperaPorEvento = new HashMap<Integer, Integer>();
     HashMap<Integer, Integer> percentualPorEvento = new HashMap<Integer, Integer>();
@@ -148,14 +138,14 @@
 
     for (eventoModel ev : meusEventos) {
 
-        int confirmados = inscricaoDAOJsp.contarConfirmados(ev.getId_evento());
-        int emEspera = inscricaoDAOJsp.listarPorEventoEStatus(ev.getId_evento(), "Espera").size();
+        int confirmados = inscricaoController.contarConfirmados(ev.getId_evento());
+        int emEspera = inscricaoController.listarPorEventoEStatus(ev.getId_evento(), "Espera").size();
         int pct = ev.getCapacidade_evento() > 0
             ? (int) Math.round((confirmados * 100.0) / ev.getCapacidade_evento())
             : 0;
 
         int checkinsFeitos = 0;
-        for (inscricaoModel inscConfirmada : inscricaoDAOJsp.listarPorEventoEStatus(ev.getId_evento(), "Confirmada")) {
+        for (inscricaoModel inscConfirmada : inscricaoController.listarPorEventoEStatus(ev.getId_evento(), "Confirmada")) {
             if (inscConfirmada.getCheckin() != null) {
                 checkinsFeitos++;
             }
@@ -901,7 +891,7 @@
 
 <div class="app">
 
-    <!-- ================= SIDEBAR ================= -->
+    <!-- SIDEBAR -->
     <aside class="sidebar" id="sidebarEl">
 
         <div class="sidebar-logo">
@@ -955,7 +945,7 @@
 
     <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
 
-    <!-- ================= COLUNA PRINCIPAL ================= -->
+    <!-- COLUNA PRINCIPAL -->
     <div class="main-col">
 
         <header class="topbar">
@@ -1017,9 +1007,7 @@
                 ⚠️ <%= flashMsgOrg %>
             </div>
             <% } %>
-            <!-- ============================================================
-                 VIEW: DASHBOARD
-            ============================================================ -->
+            <!-- VIEW: DASHBOARD -->
             <section class="view-section active" id="view-dashboard">
 
                 <div class="dash-grid">
@@ -1159,9 +1147,7 @@
                 </div>
 
             </section>
-            <!-- ============================================================
-                 VIEW: EVENTOS
-            ============================================================ -->
+            <!-- VIEW: EVENTOS -->
             <section class="view-section" id="view-eventos">
 
                 <div class="view-header">
@@ -1187,9 +1173,7 @@
 
             </section>
 
-            <!-- ============================================================
-                 VIEW: CRIAR / EDITAR EVENTO
-            ============================================================ -->
+            <!-- VIEW: CRIAR / EDITAR EVENTO -->
             <section class="view-section" id="view-criarEvento">
 
                 <div class="back-link" onclick="mudarViewById('eventos')">← Voltar</div>
@@ -1433,9 +1417,7 @@
             </section>
 
 
-            <!-- ============================================================
-                 VIEW: DETALHES DO EVENTO
-            ============================================================ -->
+            <!-- VIEW: DETALHES DO EVENTO -->
             <section class="view-section" id="view-detalheEvento">
 
                 <div class="back-link" onclick="mudarViewById('eventos')">← Voltar</div>
@@ -1488,9 +1470,7 @@
                 <div id="det_ev_fornecedores"></div>
 
             </section>
-            <!-- ============================================================
-                 VIEW: FORNECEDORES
-            ============================================================ -->
+            <!-- VIEW: FORNECEDORES -->
             <section class="view-section" id="view-fornecedores">
 
                 <div class="view-header">
@@ -1523,9 +1503,7 @@
 
             </section>
 
-            <!-- ============================================================
-                 VIEW: DETALHES DO FORNECEDOR
-            ============================================================ -->
+            <!-- VIEW: DETALHES DO FORNECEDOR -->
             <section class="view-section" id="view-detalheFornecedor">
 
                 <div class="back-link" onclick="mudarViewById('fornecedores')">← Voltar</div>
@@ -1565,9 +1543,7 @@
                 </div>
 
             </section>
-            <!-- ============================================================
-                 VIEW: LISTA DE ESPERA
-            ============================================================ -->
+            <!-- VIEW: LISTA DE ESPERA -->
             <section class="view-section" id="view-espera">
 
                 <div class="view-header">
@@ -1589,7 +1565,7 @@
                     for (eventoModel ev : meusEventos) {
 
                         List<inscricaoModel> fila =
-                            inscricaoDAOJsp.listarPorEventoEStatus(ev.getId_evento(), "Espera");
+                            inscricaoController.listarPorEventoEStatus(ev.getId_evento(), "Espera");
 
                         if (fila.isEmpty()) continue;
 
@@ -1612,7 +1588,7 @@
                             <%
                                 int pos = 1;
                                 for (inscricaoModel insc : fila) {
-                                    usuarioModel u = usuarioDAOJsp.buscarPorId(insc.getId_usuario());
+                                    usuarioModel u = usuarioController.buscarPorId(insc.getId_usuario());
                                     String nomeU = u != null ? u.getNome_usuario() : "(usuário removido)";
                                     String cpfU = u != null ? u.getCPF_usuario() : "—";
                                     String emailU = u != null ? u.getEmail_usuario() : "—";
@@ -1645,9 +1621,7 @@
 
             </section>
 
-            <!-- ============================================================
-                 VIEW: MEU PERFIL
-            ============================================================ -->
+            <!-- VIEW: MEU PERFIL -->
             <section class="view-section" id="view-perfil">
 
                 <div class="view-header">
@@ -1710,8 +1684,8 @@
 
 </div>
 
-<!-- ================= MODAL: CONTRATO ================= -->
-<!-- ================= MODAL: DETALHES DO CONTRATO (somente leitura) ================= -->
+<!-- MODAL: CONTRATO -->
+<!-- MODAL: DETALHES DO CONTRATO (somente leitura) -->
 <div class="modal-overlay" id="modalDetalhesContrato">
     <div class="modal-box wide">
         <div class="modal-header">
@@ -1854,7 +1828,7 @@
     </div>
 </div>
 
-<!-- ================= MODAL: NOVO FORNECEDOR (standalone) ================= -->
+<!-- MODAL: NOVO FORNECEDOR (standalone) -->
 <div class="modal-overlay" id="modalFornecedor">
     <div class="modal-box wide">
         <div class="modal-header">
@@ -1980,9 +1954,7 @@
 
 <script>
 
-    // =========================================================
     // MODO ESCURO
-    // =========================================================
 
     function alternarTema() {
         const escuro = document.getElementById('themeToggle').checked;
@@ -1993,9 +1965,7 @@
     document.getElementById('themeToggle').checked =
         document.documentElement.classList.contains('dark-mode');
 
-    // =========================================================
     // DADOS REAIS (gerados pelo JSP a partir do banco)
-    // =========================================================
 
     const eventosData = [
         <%
@@ -2082,22 +2052,20 @@
 
     const totalInscritosReal = <%= totalInscritosSoma %>;
 
-    // =========================================================
     // INSCRITOS POR EVENTO (dados reais, pra tela de Detalhes do Evento)
-    // =========================================================
 
     const inscritosData = [
         <%
             for (eventoModel evIns : meusEventos) {
 
                 List<inscricaoModel> inscricoesDoEvento = new ArrayList<inscricaoModel>();
-                inscricoesDoEvento.addAll(inscricaoDAOJsp.listarPorEventoEStatus(evIns.getId_evento(), "Confirmada"));
-                inscricoesDoEvento.addAll(inscricaoDAOJsp.listarPorEventoEStatus(evIns.getId_evento(), "Espera"));
-                inscricoesDoEvento.addAll(inscricaoDAOJsp.listarPorEventoEStatus(evIns.getId_evento(), "Cancelada"));
+                inscricoesDoEvento.addAll(inscricaoController.listarPorEventoEStatus(evIns.getId_evento(), "Confirmada"));
+                inscricoesDoEvento.addAll(inscricaoController.listarPorEventoEStatus(evIns.getId_evento(), "Espera"));
+                inscricoesDoEvento.addAll(inscricaoController.listarPorEventoEStatus(evIns.getId_evento(), "Cancelada"));
 
                 for (inscricaoModel insIns : inscricoesDoEvento) {
 
-                    usuarioModel uIns = usuarioDAOJsp.buscarPorId(insIns.getId_usuario());
+                    usuarioModel uIns = usuarioController.buscarPorId(insIns.getId_usuario());
                     if (uIns == null) continue;
 
                     String statusLabelIns;
@@ -2162,9 +2130,7 @@
         doc.save('inscritos-' + ev.codigo + '.pdf');
     }
 
-    // =========================================================
     // NAVEGAÇÃO ENTRE SUB-VIEWS
-    // =========================================================
 
     function mudarView(viewId, botao) {
         document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
@@ -2197,9 +2163,7 @@
         if (view) mudarViewById(view);
     })();
 
-    // =========================================================
     // NOTIFICAÇÕES
-    // =========================================================
 
     function toggleNotificacoes(ev) {
         ev.stopPropagation();
@@ -2213,10 +2177,8 @@
         }
     });
 
-    // =========================================================
     // BARRA DE OCUPAÇÃO — cor conforme percentual
     // 0-60% verde · 61-75% amarelo · 76-100% vermelho
-    // =========================================================
 
     function corBarra(pct) {
         if (pct <= 60) return 'bar-green';
@@ -2224,15 +2186,11 @@
         return 'bar-red';
     }
 
-    // =========================================================
     // EVENTOS — listagem com abas de status
-    // =========================================================
 
-    // =========================================================
     // FOTOS DE CAPA DOS CARDS DE EVENTO (mesmo banco usado na
     // tela do cliente). A escolha usa o ID do evento como seed,
     // então cada evento sempre mostra a mesma foto.
-    // =========================================================
     const imagensPorCategoria = {
         tecCientifico: ['1540575467063-178a50c2df87', '1531058020387-3be344556be6', '1558008258-3256797b43f3'],
         sociais: ['1528605248644-14dd04022da1', '1519671282429-b44660ead0a7', '1511988617509-a57c8a288659'],
@@ -2277,10 +2235,8 @@
 
     renderizarEventosOrganizador('todos');
 
-    // =========================================================
     // Publica um rascunho direto da listagem, sem precisar abrir
     // o formulário completo de edição.
-    // =========================================================
     function publicarRascunho(id) {
         const ev = eventosData.find(e => e.id === id);
         if (!ev) return;
@@ -2330,9 +2286,7 @@
         });
     });
 
-    // =========================================================
     // DETALHES DO EVENTO
-    // =========================================================
 
     let currentEventoId = null;
 
@@ -2378,9 +2332,7 @@
         mudarViewById('detalheEvento');
     }
 
-    // =========================================================
     // FORNECEDORES — listagem com abas de categoria
-    // =========================================================
 
     function renderizarFornecedores(categoria, busca) {
         busca = (busca || '').toLowerCase();
@@ -2422,9 +2374,7 @@
         renderizarFornecedores(catAtiva, e.target.value);
     });
 
-    // =========================================================
     // DETALHES DO FORNECEDOR
-    // =========================================================
 
     let currentFornecedorId = null;
 
@@ -2462,9 +2412,7 @@
         mudarViewById('detalheFornecedor');
     }
 
-    // =========================================================
     // MODAL: CONTRATO (ver / novo)
-    // =========================================================
 
     function abrirModalContrato(idContrato, idEventoPreset, idFornecedorPreset) {
 
@@ -2474,7 +2422,7 @@
         document.getElementById('contratoAnexoExistenteLabel').textContent = '';
 
         if (idContrato) {
-            // ---- MODO VISUALIZAR / EDITAR ----
+            // MODO VISUALIZAR / EDITAR
             const c = contratosData.find(x => x.id === idContrato);
             if (!c) return;
 
@@ -2500,7 +2448,7 @@
             }
 
         } else {
-            // ---- MODO NOVO CONTRATO ----
+            // MODO NOVO CONTRATO
             document.getElementById('contratoAction').value = 'novo';
             document.getElementById('contratoId').value = '';
             document.getElementById('contratoSubtitulo').textContent = 'Novo contrato';
@@ -2521,9 +2469,7 @@
         document.getElementById('modalContrato').classList.add('open');
     }
 
-    // =========================================================
     // DETALHES DO CONTRATO (somente leitura — img5)
-    // =========================================================
 
     let currentContratoDetalheId = null;
 
@@ -2623,9 +2569,7 @@
         doc.save('contrato.pdf');
     }
 
-    // =========================================================
     // MODAL: NOVO FORNECEDOR (padrão)
-    // =========================================================
 
     function abrirModalFornecedor() {
         document.getElementById('modalFornecedor').classList.add('open');
@@ -2635,9 +2579,7 @@
         document.getElementById(id).classList.remove('open');
     }
 
-    // =========================================================
     // FORM: CRIAR / EDITAR EVENTO
-    // =========================================================
 
     function selecionarToggle(idAtivo, idInativo) {
         document.getElementById(idAtivo).classList.add('active');
@@ -2666,14 +2608,9 @@
         document.getElementById('data_fim_input').min = iso;
     })();
 
-    // =========================================================
-    // Alterna entre "campos travados" (evento com inscritos/fila)
-    // e "campos livres" (evento sem ninguém vinculado ainda).
-    // Campos sensíveis nunca usam o atributo "disabled" quando o
-    // servidor precisa receber o valor de volta (nome, local, tipo,
-    // categoria) — assim o valor original continua sendo enviado no
-    // POST mesmo com o campo visualmente bloqueado para o usuário.
-    // =========================================================
+    // campos sensíveis (nome, local, tipo, categoria) nunca usam
+    // "disabled" quando travados — só ficam readonly/visualmente
+    // bloqueados, senão o valor não seria enviado no POST
     function aplicarBloqueioCampoEvento(bloqueado) {
         document.getElementById('nome_evento_input').readOnly = bloqueado;
         document.getElementById('local_evento_input').readOnly = bloqueado;
@@ -2761,11 +2698,9 @@
         if (id) abrirDetalheEvento(id);
     });
 
-    // =========================================================
     // Valida os campos de data/hora e monta os hidden inputs
     // (inicio_evento/fim_evento) que realmente vão no POST.
     // Retorna true se pode prosseguir, false se bloqueou o envio.
-    // =========================================================
     function validarEMontarDatasEvento() {
         const campoInicio = document.getElementById('data_inicio_input');
         const avisoData = document.getElementById('avisoDataPassada');
@@ -2812,19 +2747,11 @@
         document.getElementById(id).addEventListener('change', validarEMontarDatasEvento);
     });
 
-    // =========================================================
-    // Envia o formulário de evento com o status escolhido:
-    // 'rascunho' (Salvar como rascunho) ou 'ativo' (Publicar).
-    // =========================================================
-    // =========================================================
-    // Cadastrar fornecedor SEM sair da tela de criar/editar evento:
-    // como é um <form> separado com POST próprio, a navegação para
-    // fornecedorController é inevitável — então salvamos o rascunho
-    // do formulário de evento em sessionStorage antes de enviar, e
-    // pedimos para o controller nos trazer de volta para a mesma
-    // tela (view=criarEvento). Ao recarregar, restauramos os campos
-    // e já deixamos o fornecedor recém-criado pré-selecionado.
-    // =========================================================
+    // cadastrar fornecedor aqui dentro exige um <form> POST separado
+    // (não dá pra evitar a navegação), então salva o rascunho do
+    // evento em sessionStorage antes de enviar e pede pro controller
+    // devolver pra mesma view=criarEvento, já com o fornecedor
+    // recém-criado pré-selecionado
     function prepararSubmitFornecedorInline() {
         const rascunho = {
             acao: document.getElementById('acaoFormEvento').value,
@@ -2927,12 +2854,10 @@
         form.submit();
     }
 
-    // =========================================================
     // GRÁFICO "Inscrições ao longo do tempo" (eixo Y + tooltip)
     // Observação: a distribuição mensal ainda não vem de uma
     // consulta real por mês — usa o total real de inscritos
     // distribuído numa curva ilustrativa até esse valor.
-    // =========================================================
 
     function renderLineChart() {
         const svg = document.getElementById('lineChart');
@@ -2999,13 +2924,9 @@
 
     renderLineChart();
 
-    // =========================================================
     // EXPORTAR PDF (relatório da tela atual)
-    // =========================================================
 
-    // =========================================================
     // LISTA DE ESPERA — filtro por CPF
-    // =========================================================
 
     function filtrarEsperaPorCpf() {
         const termo = document.getElementById('buscaEsperaCpf').value.replace(/\D/g, '');

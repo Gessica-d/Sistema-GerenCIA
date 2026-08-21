@@ -8,22 +8,13 @@ import java.util.List;
 
 import br.com.gerencia.model.eventoModel;
 
+// acesso à tabela evento. excluirEventoComDependencias apaga em
+// cascata notificação/inscrição/contrato/favorito antes do evento em si
 public class eventoDAO {
 
-    // =====================================================
-    // NOTA SOBRE HORÁRIOS (bug corrigido):
-    // A gravação de inicio_evento/fim_evento usa setObject(..., LocalDateTime)
-    // (API JDBC 4.2, "sem fuso horário" — grava o valor literal digitado).
-    // A leitura, antes, usava rs.getTimestamp(...).toLocalDateTime(), que é
-    // uma API legada: internamente ela converte o valor para um instante
-    // (usando o "serverTimezone" da conexão) e depois de volta para
-    // data/hora "de parede" usando o fuso horário padrão da JVM. Quando
-    // esses dois fusos são diferentes, o horário lido fica diferente do
-    // horário realmente cadastrado.
-    // A correção usa rs.getObject(..., LocalDateTime.class) na leitura,
-    // que é a contrapartida "sem fuso horário" do setObject usado na
-    // gravação — o valor vai e volta do banco sem qualquer conversão.
-    // =====================================================
+    // datas gravadas/lidas com setObject/getObject(LocalDateTime.class),
+    // sem conversão de fuso — getTimestamp mudava o horário lido
+    // dependendo do fuso da conexão x da JVM
 
     private Connection conexao;
 
@@ -32,7 +23,7 @@ public class eventoDAO {
         this.conexao = conexao;
     }
 
-    // ================= ADICIONAR EVENTO =================
+    // ADICIONAR EVENTO
     // Retorna o id_evento gerado pelo banco (necessário para, por
     // exemplo, já vincular um fornecedor/contrato na mesma operação
     // de criação do evento).
@@ -73,7 +64,7 @@ public class eventoDAO {
         return idGerado;
     }
 
-    // ================= LISTAR EVENTOS =================
+    // LISTAR EVENTOS
     public List<eventoModel> listarEventos() throws Exception {
 
         List<eventoModel> eventos = new ArrayList<>();
@@ -109,7 +100,7 @@ public class eventoDAO {
         return eventos;
     }
 
-    // ================= BUSCAR EVENTO POR ID =================
+    // BUSCAR EVENTO POR ID
     public eventoModel buscarPorId(int idEvento) throws Exception {
 
         String sql = "SELECT * FROM evento WHERE id_evento = ?";
@@ -146,7 +137,7 @@ public class eventoDAO {
         return evento;
     }
 
-    // ================= ATUALIZAR EVENTO =================
+    // ATUALIZAR EVENTO
     public void atualizarEvento(eventoModel evento) throws Exception {
 
         String sql = "UPDATE evento SET "
@@ -183,7 +174,7 @@ public class eventoDAO {
         stmt.close();
     }
 
-    // ================= EXCLUIR EVENTO =================
+    // EXCLUIR EVENTO
     public void excluirEvento(int idEvento) throws Exception {
 
         String sql = "DELETE FROM evento WHERE id_evento = ?";
@@ -197,7 +188,7 @@ public class eventoDAO {
         stmt.close();
     }
 
-    // ================= EXCLUIR EVENTO COM TUDO QUE DEPENDE DELE =================
+    // EXCLUIR EVENTO COM TUDO QUE DEPENDE DELE
     // Sem isso, excluir um evento que já tem inscrito/contrato/favorito
     // quebra por causa das chaves estrangeiras (ON DELETE NO ACTION).
     // Usado principalmente pelo admin, ao remover eventos inadequados.

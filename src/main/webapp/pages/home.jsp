@@ -4,26 +4,22 @@
 <%@ page import="br.com.gerencia.model.inscricaoModel"%>
 <%@ page import="br.com.gerencia.model.favoritoModel"%>
 <%@ page import="br.com.gerencia.model.notificacaoModel"%>
-<%@ page import="br.com.gerencia.dao.eventoDAO"%>
-<%@ page import="br.com.gerencia.dao.inscricaoDAO"%>
-<%@ page import="br.com.gerencia.dao.favoritoDAO"%>
-<%@ page import="br.com.gerencia.dao.notificacaoDAO"%>
-<%@ page import="br.com.gerencia.dao.usuarioDAO"%>
-<%@ page import="br.com.gerencia.utils.Conexao"%>
+<%@ page import="br.com.gerencia.controller.eventoController"%>
+<%@ page import="br.com.gerencia.controller.inscricaoController"%>
+<%@ page import="br.com.gerencia.controller.favoritoController"%>
+<%@ page import="br.com.gerencia.controller.notificacaoController"%>
+<%@ page import="br.com.gerencia.controller.usuarioController"%>
 <%@ page import="java.util.List"%>
 <%@ page import="java.util.ArrayList"%>
 <%@ page import="java.time.format.DateTimeFormatter"%>
 <%
-    // ================= SEM CACHE =================
-    // Evita que o navegador reaproveite uma cópia antiga desta página
-    // (ex.: após favoritar/inscrever-se, ou trocar de usuário no mesmo
-    // navegador) — sem isso, contadores como "Favoritos" e "Meus Eventos"
-    // podem continuar mostrando valores de uma sessão anterior.
+    // sem isso o navegador reaproveita uma versão antiga da página
+    // (ex: contador de favoritos desatualizado após favoritar algo)
     response.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
     response.setHeader("Pragma", "no-cache");
     response.setDateHeader("Expires", 0);
 
-    // ================= GUARDA DE SESSÃO =================
+    // GUARDA DE SESSÃO
     usuarioModel usuarioLogado = (usuarioModel) session.getAttribute("usuarioLogado");
 
     if (usuarioLogado == null) {
@@ -41,18 +37,14 @@
             : ("" + partes[0].charAt(0)).toUpperCase();
     }
 
-    // ================= DADOS REAIS DO BANCO =================
-    eventoDAO eventoDAOJsp = new eventoDAO(Conexao.getConnection());
-    inscricaoDAO inscricaoDAOJsp = new inscricaoDAO(Conexao.getConnection());
-    favoritoDAO favoritoDAOJsp = new favoritoDAO(Conexao.getConnection());
-    usuarioDAO usuarioDAOJsp = new usuarioDAO(Conexao.getConnection());
 
+  
     DateTimeFormatter fmtData = DateTimeFormatter.ofPattern("dd/MM/yyyy");
     DateTimeFormatter fmtHora = DateTimeFormatter.ofPattern("HH:mm");
 
     // eventos públicos e ativos (o que o cliente pode ver/se inscrever)
     List<eventoModel> eventosAtivos = new ArrayList<eventoModel>();
-    for (eventoModel ev : eventoDAOJsp.listarEventos()) {
+    for (eventoModel ev : eventoController.listarTodos()) {
         if ("ativo".equals(ev.getStatus_evento())) {
             eventosAtivos.add(ev);
         }
@@ -60,7 +52,7 @@
 
     // inscrições do usuário logado (em todos os status)
     List<inscricaoModel> minhasInscricoes = new ArrayList<inscricaoModel>();
-    for (inscricaoModel insc : inscricaoDAOJsp.listarInscricoes()) {
+    for (inscricaoModel insc : inscricaoController.listarTodos()) {
         if (insc.getId_usuario() == usuarioLogado.getId_usuario()) {
             minhasInscricoes.add(insc);
         }
@@ -76,16 +68,15 @@
 
     // favoritos do usuário logado
     List<favoritoModel> meusFavoritos = new ArrayList<favoritoModel>();
-    for (favoritoModel fav : favoritoDAOJsp.listarFavoritos()) {
+    for (favoritoModel fav : favoritoController.listarTodos()) {
         if (fav.getId_usuario() == usuarioLogado.getId_usuario()) {
             meusFavoritos.add(fav);
         }
     }
 
     // notificações do usuário logado
-    notificacaoDAO notificacaoDAOJsp = new notificacaoDAO(Conexao.getConnection());
-    List<notificacaoModel> minhasNotificacoes = notificacaoDAOJsp.listarPorUsuario(usuarioLogado.getId_usuario());
-    int notifNaoLidas = notificacaoDAOJsp.contarNaoLidas(usuarioLogado.getId_usuario());
+    List<notificacaoModel> minhasNotificacoes = notificacaoController.listarPorUsuario(usuarioLogado.getId_usuario());
+    int notifNaoLidas = notificacaoController.contarNaoLidas(usuarioLogado.getId_usuario());
     DateTimeFormatter fmtDataHora = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 %>
 <%!
@@ -103,14 +94,8 @@
         return Character.toUpperCase(c.charAt(0)) + c.substring(1);
     }
 
-    // =========================================================
-    // FOTOS DE CAPA DOS CARDS DE EVENTO
-    // Um pequeno banco de fotos (Unsplash) por categoria, para
-    // preencher o espaço em branco no topo dos cards. A escolha
-    // dentro do pool usa o ID do evento como "seed", então cada
-    // evento sempre mostra a mesma foto (não fica trocando a
-    // cada recarregamento da página).
-    // =========================================================
+    // fotos de capa dos cards (Unsplash), escolhidas por categoria usando
+    // o id do evento como seed, pra sempre mostrar a mesma imagem
     private static final java.util.Map<String, String[]> IMAGENS_POR_CATEGORIA = new java.util.HashMap<String, String[]>();
     static {
         IMAGENS_POR_CATEGORIA.put("tecCientifico", new String[]{"1540575467063-178a50c2df87", "1531058020387-3be344556be6", "1558008258-3256797b43f3"});
@@ -960,7 +945,7 @@
 
 <div class="app">
 
-    <!-- ================= SIDEBAR ================= -->
+    <!-- SIDEBAR -->
     <aside class="sidebar" id="sidebarEl">
 
         <div class="sidebar-logo">
@@ -1017,7 +1002,7 @@
 
     <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
 
-    <!-- ================= ÁREA PRINCIPAL ================= -->
+    <!-- ÁREA PRINCIPAL -->
     <div class="main-col">
 
         <header class="topbar">
@@ -1072,9 +1057,7 @@
 
         <main class="content">
 
-            <!-- ============================================================
-                 VIEW: INÍCIO
-            ============================================================ -->
+            <!-- VIEW: INÍCIO -->
             <section class="view-section active" id="view-inicio">
 
                 <div class="hero-banner">
@@ -1104,7 +1087,7 @@
                                 int mostradosProximos = 0;
                                 for (inscricaoModel insc : minhasInscricoes) {
                                     if (!"Confirmada".equals(insc.getStatus_inscricao())) continue;
-                                    eventoModel evProx = eventoDAOJsp.buscarPorId(insc.getId_evento());
+                                    eventoModel evProx = eventoController.buscarPorId(insc.getId_evento());
                                     if (evProx == null) continue;
                                     if (mostradosProximos >= 3) break;
                                     mostradosProximos++;
@@ -1135,7 +1118,7 @@
                             <%
                                 int mostradosFav = 0;
                                 for (favoritoModel fav : meusFavoritos) {
-                                    eventoModel evFav = eventoDAOJsp.buscarPorId(fav.getId_evento());
+                                    eventoModel evFav = eventoController.buscarPorId(fav.getId_evento());
                                     if (evFav == null) continue;
                                     if (mostradosFav >= 3) break;
                                     mostradosFav++;
@@ -1162,7 +1145,7 @@
                                 int mostradosHist = 0;
                                 for (int i = minhasInscricoes.size() - 1; i >= 0 && mostradosHist < 3; i--) {
                                     inscricaoModel insc = minhasInscricoes.get(i);
-                                    eventoModel evHist = eventoDAOJsp.buscarPorId(insc.getId_evento());
+                                    eventoModel evHist = eventoController.buscarPorId(insc.getId_evento());
                                     if (evHist == null) continue;
                                     mostradosHist++;
                             %>
@@ -1188,9 +1171,7 @@
 
             </section>
 
-            <!-- ============================================================
-                 VIEW: EVENTOS
-            ============================================================ -->
+            <!-- VIEW: EVENTOS -->
             <section class="view-section" id="view-eventos">
 
                 <div class="view-header">
@@ -1205,9 +1186,7 @@
 
             </section>
 
-            <!-- ============================================================
-                 VIEW: FAVORITOS
-            ============================================================ -->
+            <!-- VIEW: FAVORITOS -->
             <section class="view-section" id="view-favoritos">
 
                 <div class="view-header">
@@ -1222,9 +1201,7 @@
 
             </section>
 
-            <!-- ============================================================
-                 VIEW: DETALHES DO EVENTO
-            ============================================================ -->
+            <!-- VIEW: DETALHES DO EVENTO -->
             <section class="view-section" id="view-detalheEvento">
 
                 <div class="back-link" onclick="mudarViewById('eventos')" style="display:flex; align-items:center; gap:8px; font-size:12px; color:#64748B; margin-bottom:10px; cursor:pointer;">← Voltar</div>
@@ -1297,7 +1274,7 @@
                         if (!"Confirmada".equals(insc.getStatus_inscricao())
                                 && !"Espera".equals(insc.getStatus_inscricao())) continue;
 
-                        eventoModel evM = eventoDAOJsp.buscarPorId(insc.getId_evento());
+                        eventoModel evM = eventoController.buscarPorId(insc.getId_evento());
                         if (evM == null) continue;
 
                         mostradosMeusEv++;
@@ -1344,9 +1321,7 @@
 
             </section>
 
-            <!-- ============================================================
-                 VIEW: HISTÓRICO
-            ============================================================ -->
+            <!-- VIEW: HISTÓRICO -->
             <section class="view-section" id="view-historico">
 
                 <div class="view-header">
@@ -1367,7 +1342,7 @@
 
                     for (inscricaoModel insc : historicoOrdenado) {
 
-                        eventoModel evH = eventoDAOJsp.buscarPorId(insc.getId_evento());
+                        eventoModel evH = eventoController.buscarPorId(insc.getId_evento());
                         if (evH == null) continue;
 
                         String badgeClasse;
@@ -1406,9 +1381,7 @@
 
             </section>
 
-            <!-- ============================================================
-                 VIEW: MEU PERFIL
-            ============================================================ -->
+            <!-- VIEW: MEU PERFIL -->
             <section class="view-section" id="view-perfil">
 
                 <div class="view-header">
@@ -1463,9 +1436,7 @@
 
 <script>
 
-    // =========================================================
     // MODO ESCURO
-    // =========================================================
 
     function alternarTema() {
         const escuro = document.getElementById('themeToggle').checked;
@@ -1476,9 +1447,7 @@
     document.getElementById('themeToggle').checked =
         document.documentElement.classList.contains('dark-mode');
 
-    // =========================================================
     // NAVEGAÇÃO ENTRE SUB-VIEWS (sem trocar de página)
-    // =========================================================
 
     function mudarView(viewId, botao) {
 
@@ -1531,16 +1500,14 @@
         }
     });
 
-    // =========================================================
     // EVENTOS (dados reais, vindos do eventoDAO)
-    // =========================================================
 
     const eventosReais = [
         <%
             for (eventoModel ev : eventosAtivos) {
 
-                int inscritosEv = inscricaoDAOJsp.contarConfirmados(ev.getId_evento());
-                int filaEv = inscricaoDAOJsp.contarEspera(ev.getId_evento());
+                int inscritosEv = inscricaoController.contarConfirmados(ev.getId_evento());
+                int filaEv = inscricaoController.contarEspera(ev.getId_evento());
                 boolean lotadoEv = inscritosEv >= ev.getCapacidade_evento();
                 int pctEv = ev.getCapacidade_evento() > 0
                     ? (int) Math.round((inscritosEv * 100.0) / ev.getCapacidade_evento())
@@ -1585,10 +1552,8 @@
         %>
     ];
 
-    // =========================================================
     // FOTOS DE CAPA DOS CARDS DE EVENTO (mesmo banco usado no
     // lado servidor, para os cards montados aqui via JS)
-    // =========================================================
     const imagensPorCategoria = {
         tecCientifico: ['1540575467063-178a50c2df87', '1531058020387-3be344556be6', '1558008258-3256797b43f3'],
         sociais: ['1528605248644-14dd04022da1', '1519671282429-b44660ead0a7', '1511988617509-a57c8a288659'],
@@ -1819,12 +1784,10 @@
         form.submit();
     }
 
-    // =========================================================
     // CHECK-IN
     // O botão fica sempre visível a partir do momento em que o
     // usuário está com inscrição Confirmada, mas só é clicável
     // quando o horário atual está dentro do período do evento.
-    // =========================================================
 
     function estaDentroDoPeriodoEvento(inicioIso, fimIso) {
         const agora = new Date();
@@ -1894,13 +1857,8 @@
             lista.map(criarCardEvento).join('') || '<div class="empty-state" style="grid-column:1/-1;text-align:center;color:#94A3B8;padding:30px;">Nenhum evento encontrado.</div>';
     }
 
-    // =========================================================
-    // VISIBILIDADE PÚBLICO x PRIVADO
-    // Eventos privados só aparecem na listagem geral quando o
-    // usuário digita exatamente o código do evento na busca.
-    // Eventos já vinculados ao usuário (inscrito/fila/favorito)
-    // continuam visíveis normalmente nas telas específicas deles.
-    // =========================================================
+    // evento privado só aparece na listagem geral se o código digitado
+    // bater exatamente com a busca (ver aplicarBuscaEventos)
     function eventosPublicos() {
         return eventosReais.filter(e => e.tipo === 'publico');
     }
@@ -1968,18 +1926,13 @@
         });
     });
 
-    // =========================================================
     // EXPORTAR PDF (dados reais da tela atual)
-    // =========================================================
 
-    // =========================================================
-    // HISTÓRICO / INSCRIÇÕES (dados reais, pra modal de detalhes e comprovante)
-    // =========================================================
 
     const historicoData = [
         <%
             for (inscricaoModel insc : minhasInscricoes) {
-                eventoModel evI = eventoDAOJsp.buscarPorId(insc.getId_evento());
+                eventoModel evI = eventoController.buscarPorId(insc.getId_evento());
                 if (evI == null) continue;
 
                 String statusLabelJs;
@@ -2100,7 +2053,7 @@
 
 </script>
 
-<!-- ================= MODAL: LISTA DE ESPERA (EVENTO LOTADO) ================= -->
+<!-- MODAL: LISTA DE ESPERA (EVENTO LOTADO) -->
 <div class="modal-overlay" id="modalFilaEspera">
     <div class="modal-box" style="max-width:420px;">
         <div class="modal-header">
@@ -2128,7 +2081,7 @@
     </div>
 </div>
 
-<!-- ================= MODAL: DETALHES DA INSCRIÇÃO ================= -->
+<!-- MODAL: DETALHES DA INSCRIÇÃO -->
 <div class="modal-overlay" id="modalInscricao">
     <div class="modal-box">
         <div class="modal-header">
